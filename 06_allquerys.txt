@@ -1,0 +1,312 @@
+SELECT 
+  "ID do Processo"
+, "Data da carga"
+, "Tipo nota Fiscal Eletrônica"
+, SUM ( "Quantidade Nota Eletrônica Cancelada" )    AS "Quantidade Nota Eletrônica Cancelada"
+, SUM ( "Quantidade Nota de Eletronica" )           AS "Quantidade Nota de Eletronica Carregada"
+FROM (
+SELECT  
+  id_procid                              AS "ID do Processo" 
+, TO_CHAR(data_xml_upload, 'DD/MM/YYYY') AS "Data da carga"
+, 'NFe'                                  AS "Tipo nota Fiscal Eletrônica"
+, COUNT(*)                               AS "Quantidade Nota Eletrônica Cancelada"
+, 0                                      AS "Quantidade Nota de Eletronica"
+ FROM tb_xml_matrix
+WHERE 1=1 
+and CANC = 'C'
+and NFE = 'Y'
+GROUP  BY  id_procid ,  to_CHAR(data_xml_upload, 'DD/MM/YYYY') 
+UNION 
+SELECT  
+  id_procid                              AS "ID do Processo" 
+, TO_CHAR(data_xml_upload, 'DD/MM/YYYY') AS "Data da carga"
+, 'NFe'                                  AS "Tipo nota Fiscal Eletrônica"
+,  0                                     AS "Quantidade Nota Eletrônica Canceladas"
+, COUNT(*)                               AS "Quantidade Nota de Eletronica "
+ FROM tb_xml_matrix
+WHERE 1=1 
+and CANC  IS NULL
+and   nfe = 'Y'
+GROUP  BY  id_procid ,  to_CHAR(data_xml_upload, 'DD/MM/YYYY') 
+--  CFE 
+UNION
+SELECT  
+  id_procid                              AS "ID do Processo" 
+, TO_CHAR(data_xml_upload, 'DD/MM/YYYY') AS "Data da carga"
+, 'CFe'                                  AS "Tipo nota Fiscal Eletrônica"
+, COUNT(*)                               AS "Quantidade Nota Eletrônica Cancelada"
+, 0                                      AS "Quantidade Nota de Eletronica"
+ FROM tb_xml_matrix
+WHERE 1=1 
+and CANC = 'C'
+and CFE = 'Y'
+GROUP  BY  id_procid ,  to_CHAR(data_xml_upload, 'DD/MM/YYYY') 
+UNION 
+SELECT  
+  id_procid                              AS "ID do Processo" 
+, TO_CHAR(data_xml_upload, 'DD/MM/YYYY') AS "Data da carga"
+, 'CFe'                                  AS "Tipo nota Fiscal Eletrônica"
+,  0                                     AS "Quantidade Nota Eletrônica Canceladas"
+, COUNT(*)                               AS "Quantidade Nota de Eletronica "
+ FROM tb_xml_matrix
+WHERE 1=1 
+and   Cfe = 'Y'
+and CANC  IS NULL
+GROUP  BY  id_procid ,  to_CHAR(data_xml_upload, 'DD/MM/YYYY') 
+)GROUP BY  
+  "ID do Processo" 
+, "Data da carga"
+, "Tipo nota Fiscal Eletrônica" 
+ORDER BY "ID do Processo" DESC
+  
+
+
+---   customizado
+SELECT *
+FROM  (SELECT 
+       B.ID_PROCID      "ID do processo",
+       B.B11_IDE_CNPJ   "CNPJ",
+       B.C03_EMIT_XNOME "Nome do Emitente",
+       B.B06_IDE_NCFE   "Nr. Nota Fiscal",
+       TO_CHAR(SUBSTR(B.B07_IDE_DEMI, 7, 2 )||'/'|| SUBSTR ( B.B07_IDE_DEMI,  5,  2  )||   '/'||   SUBSTR       (  B.B07_IDE_DEMI,  1,  4  )  ) "Data de emissão",
+       SUM(A.I10_PROD_VPROD)            "Valor do produto",
+       A.I06_PROD_CFOP                  "CFOP",
+       A.I05_PROD_NCM                   "NCM"    ,
+       FNC_XML_NCM (A.I05_PROD_NCM)     "Observação"
+  FROM TB_XML_ITEM_CFE A, TB_XML_CAPA_CFE B
+ WHERE     A.ID_XML_MATRIX = B.ID_XML_MATRIX
+       AND A.ID_PROCID = B.ID_PROCID
+       AND B.CANC IS NULL
+    GROUP BY  
+     B.ID_PROCID ,     
+     B.B11_IDE_CNPJ      ,
+     B.C03_EMIT_XNOME    ,
+     B.B06_IDE_NCFE      ,
+     TO_CHAR(SUBSTR(B.B07_IDE_DEMI, 7, 2 )||'/'|| SUBSTR ( B.B07_IDE_DEMI,  5,  2  )||   '/'||   SUBSTR       (  B.B07_IDE_DEMI,  1,  4  )  ),
+     A.I06_PROD_CFOP             , 
+     A.I05_PROD_NCM      ,           
+     FNC_XML_NCM (A.I05_PROD_NCM)  ) 
+     WHERE  "Observação"  IS NOT NULL  
+     UNION 
+ SELECT 
+    CAPA.ID_PROCID                           AS "ID do processo"
+  , CAPA.C02_CNPJ                            as "CNPJ"
+  , CAPA.C03_XNOME                           AS "Nome do Emitente" 
+  , CAPA.B20_NNF                             AS "Nr. Nota Fiscal"
+  , CAPA.B09_DHEMI                           AS "Data de emissão"
+  , SUM(ITEM.I11_VPROD)                     AS "Valor Total do produto"
+  , ITEM.I08_CFOP                            AS "CFOP"
+  , ITEM.I05_NCM                             AS "NCM"
+  , FNC_XML_NCM (TRIM(ITEM.I05_NCM))         AS "Observação" 
+  FROM TB_XML_ITEM_NFE ITEM
+  , TB_XML_CAPA_DFE     CAPA
+ WHERE     ITEM.ID_XML_MATRIX = CAPA.ID_XML_MATRIX
+       AND ITEM.ID_PROCID      = CAPA.ID_PROCID
+       AND CAPA.CANC IS NULL
+   GROUP BY 
+     CAPA.ID_PROCID                           
+   , CAPA.C02_CNPJ                            
+   , CAPA.C03_XNOME                           
+   , CAPA.B20_NNF                             
+   , CAPA.B09_DHEMI                           
+   , ITEM.I08_CFOP                            
+   , ITEM.I05_NCM 
+
+
+
+-- analitico
+
+SELECT * 
+FROM (
+SELECT 
+    A.NM_XML                              AS "Nome do arquivo fisico do xml"   
+  , B.ID_PROCID                           AS "ID do processo"
+  , B.C02_CNPJ                            as "CNPJ"
+  , B.C03_XNOME                           AS "Nome do Emitente" 
+  , B.B20_NNF                             AS "Nr. Nota Fiscal"
+  , A.I04_XPROD                           AS "Nome do produto"
+  , B.B09_DHEMI                           AS "Data de emissão"
+  , A.I11_VPROD                           AS "Valor do produto"
+  ,  NVL(C.S08_COFINSALIQ_PCOFINS,0)               AS PCOFINS
+   , NVL(C.S011_COFINSALIQ_VCOFINS,0)              AS VCOFINS
+   , NVL(C.Q08_PISALIQ_PPIS,0)                     AS PPIS
+   , NVL(C.Q09_PISALIQ_VPIS,0)                     AS VPIS
+  , A.I08_CFOP                            AS "Codigo CFOP"
+  ,(  SELECT  CFO."DESCRICAO"        
+         FROM  TB_XML_CFOP CFO        
+      WHERE  CFO."COD_CFO"  =  A.I08_CFOP
+       AND ROWNUM  = 1 )                   AS "Descricao CFOP"  
+  , A.I05_NCM                              AS "NCM"
+  , FNC_XML_NCM (TRIM(A.I05_NCM))          AS "Observação" 
+  , FNC_XML_NCM_LEGIS (TRIM(A.I05_NCM))    AS "Legislação"
+ FROM TB_XML_ITEM_NFE A
+    , TB_XML_CAPA_DFE B
+    , TB_XML_IMPOSTO_NFE  C
+ WHERE     1=1 
+  AND A.ID_XML_MATRIX = B.ID_XML_MATRIX
+  AND A.ID_PROCID      = B.ID_PROCID
+  AND B.CANC IS NULL
+  AND A.ID_XML_MATRIX = C.ID_XML_MATRIX
+   AND A.H02_NITEM     = C.H02_NITEM) 
+   ORDER BY "Observação"  asc nulls last; 
+
+
+
+-- sintetico
+SELECT *
+ FROM 
+   (SELECT 
+    TO_CHAR(TO_DATE (B09_DHEMI), 'MM/YYYY')     AS "Data da Emissão"  
+  , B.C02_CNPJ                            AS "CNPJ"
+  , B.C03_XNOME                           AS "Nome do Emitente" 
+  , SUM(A.I11_VPROD)                      AS "Valor Total do produto"
+  , NVL(SUM(C.S08_COFINSALIQ_PCOFINS),0)  as PCOFINS
+  , NVL(SUM(C.S011_COFINSALIQ_VCOFINS),0) as VCOFINS
+  , NVL(SUM(C.Q08_PISALIQ_PPIS),0)        as PPIS
+  , NVL(SUM(C.Q09_PISALIQ_VPIS),0)        as  VPIS
+  , A.I08_CFOP                            AS "Código CFOP"
+ -- , A.I05_NCM 
+  , FNC_XML_NCM (TRIM(A.I05_NCM))         AS "Observação" 
+  FROM  TB_XML_ITEM_NFE A
+      , TB_XML_CAPA_DFE B
+      ,  TB_XML_IMPOSTO_NFE  C
+ WHERE     A.ID_XML_MATRIX = B.ID_XML_MATRIX
+       AND A.ID_PROCID      = B.ID_PROCID
+       AND B.CANC IS NULL
+       AND A.ID_XML_MATRIX = C.ID_XML_MATRIX
+   AND A.H02_NITEM     = C.H02_NITEM
+    GROUP BY 
+       TO_CHAR(TO_DATE (B09_DHEMI), 'MM/YYYY')  
+      , B.C02_CNPJ
+      , B.C03_XNOME 
+      , A.I08_CFOP
+      , FNC_XML_NCM (TRIM(A.I05_NCM)))     WHERE  "Observação" IS NOT NULL  
+      ORDER BY 1,2,9 
+
+--  analitico
+SELECT 
+       A.NM_XML                                   AS "Nome fisico do XML",
+       B.ID_PROCID                                AS "ID do processo",
+       B.B11_IDE_CNPJ                             AS "CNPJ",
+       B.C03_EMIT_XNOME                           AS "Nome do Emitente",
+       B.B06_IDE_NCFE                             AS "Nr. Cupom Fiscal",
+       A.H02_DET_NITEM                            AS "Nr.Item",
+       A.I04_PROD_XPROD                           AS "Descrição do produto",
+       TO_CHAR(SUBSTR(B.B07_IDE_DEMI, 7, 2 )||'/'|| SUBSTR ( B.B07_IDE_DEMI,  5,  2  )||   '/'||   SUBSTR       (  B.B07_IDE_DEMI,  1,  4  )  ) AS  "Data de emissão",
+       A.I10_PROD_VPROD                           AS "Valor do produto",
+       C.Q04_PISNT_CST                            AS PIS_CST ,
+       C.S07_COFINSALIQ_CST                       AS ALIQ_COFINS_CST ,
+       A.I06_PROD_CFOP                            AS "Código do CFOP",
+      (  SELECT  CFO."DESCRICAO"  FROM  TB_XML_CFOP CFO  WHERE  CFO."COD_CFO"  =  A.I06_PROD_CFOP   AND ROWNUM  = 1 )                           AS "Descricao do CFOP"  ,
+       A.I05_PROD_NCM                             AS "Código do NCM" ,       
+       FNC_XML_NCM (TRIM(A.I05_PROD_NCM))         AS "Observação"   ,  
+       FNC_XML_NCM_LEGIS (TRIM(A.I05_PROD_NCM))   AS "Legislação"    
+  FROM TB_XML_ITEM_CFE A, TB_XML_CAPA_CFE B , TB_XML_IMPOSTO_CFE C 
+   WHERE    1=1
+       AND A.ID_XML_MATRIX  = C.ID_XML_MATRIX
+       AND A.H02_DET_NITEM  = C.NITEM
+       AND A.ID_XML_MATRIX  = B.ID_XML_MATRIX
+       AND A.ID_PROCID      = B.ID_PROCID
+       AND B.CANC IS NULL 
+    ORDER BY B.B06_IDE_NCFE , A.H02_DET_NITEM , FNC_XML_NCM (TRIM(A.I05_PROD_NCM)) NULLS LAST ;
+
+
+--sintetico
+SELECT *
+  FROM (
+SELECT 
+       B.B11_IDE_CNPJ                             AS "CNPJ",
+       B.C03_EMIT_XNOME                           AS "Nome do Emitente",
+       SUBSTR ( B.B07_IDE_DEMI,  5,  2  )||   '/'||   SUBSTR       (  B.B07_IDE_DEMI,  1,  4  )   AS  "Data de emissão",
+       SUM(A.I10_PROD_VPROD)                      AS "Valor toTAL do produto",
+       C.Q04_PISNT_CST                            AS PIS_CST ,
+       C.S07_COFINSALIQ_CST                       AS ALIQ_COFINS_CST ,
+       A.I06_PROD_CFOP                            AS "Código do CFOP",
+      ---(  SELECT  CFO."DESCRICAO"  FROM  TB_XML_CFOP CFO  WHERE  CFO."COD_CFO"  =  A.I06_PROD_CFOP   AND ROWNUM  = 1 )                           AS "Descricao do CFOP"  ,
+       --A.I05_PROD_NCM                             AS "Código do NCM" ,       
+       FNC_XML_NCM (TRIM(A.I05_PROD_NCM))         AS "Observação"   
+  FROM TB_XML_ITEM_CFE A, TB_XML_CAPA_CFE B , TB_XML_IMPOSTO_CFE C 
+   WHERE    1=1
+       AND A.ID_XML_MATRIX  = C.ID_XML_MATRIX
+       AND A.H02_DET_NITEM  = C.NITEM
+       AND A.ID_XML_MATRIX  = B.ID_XML_MATRIX
+       AND A.ID_PROCID      = B.ID_PROCID
+       AND B.CANC IS NULL 
+     GROUP BY B.B11_IDE_CNPJ  ,B.C03_EMIT_XNOME
+     , SUBSTR ( B.B07_IDE_DEMI,  5,  2  )||   '/'||   SUBSTR       (  B.B07_IDE_DEMI,  1,  4  )
+     --, I10_PROD_VPROD
+     , Q04_PISNT_CST, S07_COFINSALIQ_CST,  A.I06_PROD_CFOP
+     --, A.I05_PROD_NCM 
+     , FNC_XML_NCM (TRIM(A.I05_PROD_NCM)) ) WHERE "Observação" IS NOT NULL 
+    --ORDER BY B.B06_IDE_NCFE , A.H02_DET_NITEM , FNC_XML_NCM (TRIM(A.I05_PROD_NCM)) NULLS LAST ;
+       ORDER BY  "Data de emissão", "Código do CFOP"
+
+
+
+---  all historico
+SELECT 
+  "ID do Processo"
+, "Data da carga"
+, "Tipo nota Fiscal Eletrônica"
+, SUM ( "Quantidade Nota Eletrônica Cancelada" )    AS "Quantidade Nota Eletrônica Cancelada"
+, SUM ( "Quantidade Nota de Eletronica" )           AS "Quantidade Nota de Eletronica Carregada"
+FROM (
+SELECT  
+  id_procid                              AS "ID do Processo" 
+, TO_CHAR(data_xml_upload, 'DD/MM/YYYY') AS "Data da carga"
+, 'NFe'                                  AS "Tipo nota Fiscal Eletrônica"
+, COUNT(*)                               AS "Quantidade Nota Eletrônica Cancelada"
+, 0                                      AS "Quantidade Nota de Eletronica"
+ FROM tb_xml_matrix
+WHERE 1=1 
+and CANC = 'C'
+and NFE = 'Y'
+GROUP  BY  id_procid ,  to_CHAR(data_xml_upload, 'DD/MM/YYYY') 
+UNION 
+SELECT  
+  id_procid                              AS "ID do Processo" 
+, TO_CHAR(data_xml_upload, 'DD/MM/YYYY') AS "Data da carga"
+, 'NFe'                                  AS "Tipo nota Fiscal Eletrônica"
+,  0                                     AS "Quantidade Nota Eletrônica Canceladas"
+, COUNT(*)                               AS "Quantidade Nota de Eletronica "
+ FROM tb_xml_matrix
+WHERE 1=1 
+and CANC  IS NULL
+and   nfe = 'Y'
+GROUP  BY  id_procid ,  to_CHAR(data_xml_upload, 'DD/MM/YYYY') 
+--  CFE 
+UNION
+SELECT  
+  id_procid                              AS "ID do Processo" 
+, TO_CHAR(data_xml_upload, 'DD/MM/YYYY') AS "Data da carga"
+, 'CFe'                                  AS "Tipo nota Fiscal Eletrônica"
+, COUNT(*)                               AS "Quantidade Nota Eletrônica Cancelada"
+, 0                                      AS "Quantidade Nota de Eletronica"
+ FROM tb_xml_matrix
+WHERE 1=1 
+and CANC = 'C'
+and CFE = 'Y'
+GROUP  BY  id_procid ,  to_CHAR(data_xml_upload, 'DD/MM/YYYY') 
+UNION 
+SELECT  
+  id_procid                              AS "ID do Processo" 
+, TO_CHAR(data_xml_upload, 'DD/MM/YYYY') AS "Data da carga"
+, 'CFe'                                  AS "Tipo nota Fiscal Eletrônica"
+,  0                                     AS "Quantidade Nota Eletrônica Canceladas"
+, COUNT(*)                               AS "Quantidade Nota de Eletronica "
+ FROM tb_xml_matrix
+WHERE 1=1 
+and   Cfe = 'Y'
+and CANC  IS NULL
+GROUP  BY  id_procid ,  to_CHAR(data_xml_upload, 'DD/MM/YYYY') 
+)GROUP BY  
+  "ID do Processo" 
+, "Data da carga"
+, "Tipo nota Fiscal Eletrônica" 
+ORDER BY "ID do Processo" DESC
+  
+
+
+
+
+

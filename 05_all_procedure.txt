@@ -1,0 +1,1243 @@
+DROP PROCEDURE "APEX"."PRC_CARIMBO_STATUS_CFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_CARIMBO_STATUS_CFE
+IS
+BEGIN
+    FOR c3 IN ( SELECT t.ROWID id
+                  FROM tb_xml_matrix t
+                     , XMLTABLE ( '/CFe/infCFe'
+                                  PASSING t.xmls
+                                  COLUMNS infcfe VARCHAR2 ( 100 ) PATH '@Id'
+                                        , versao VARCHAR2 ( 100 ) PATH '@versao'
+                                        , versaodadosent VARCHAR2 ( 100 ) PATH '@versaoDadosEnt'
+                                        , versaosb VARCHAR2 ( 100 ) PATH '@versaoSB' ) ) LOOP
+        UPDATE tb_xml_matrix
+           SET cfe = 'Y'
+           , ID_XML_TIPO = 2
+         WHERE ROWID = c3.id;
+    END LOOP;
+END PRC_CARIMBO_STATUS_CFE; 
+
+
+
+
+
+--  CARIMBOS DAS NOTAS CANCELADAS  
+-- PRC_XML_NFE_CANC;
+/
+
+
+DROP PROCEDURE "APEX"."PRC_CARIMBO_STATUS_NFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_CARIMBO_STATUS_NFE 
+IS
+BEGIN
+FOR  C2 IN  (
+SELECT t.ROWID id
+  FROM tb_xml_matrix t
+     , TABLE ( XMLSEQUENCE ( EXTRACT ( t.xmls
+                                     , 'nfeProc'
+                                     , 'xmlns="http://www.portalfiscal.inf.br/nfe"' ) ) ) x07 ) 
+LOOP
+UPDATE  tb_xml_matrix
+  SET   NFE = 'Y' 
+  , ID_XML_TIPO = 1 
+ WHERE ROWID  = C2.ID ;
+END LOOP;
+END ; 
+
+
+--  
+-- --  UPDATTE  CFE  ( 2 )  CARIMBO
+--
+/
+
+
+DROP PROCEDURE "APEX"."PRC_INS_XML_CANC_NFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_INS_XML_CANC_NFE
+IS 
+BEGIN
+INSERT INTO TB_XML_CANC
+SELECT  
+        NULL                                                                                AS ID_XML_CANC                  
+     ,  T.ID_XML_MATRIX                                                                     AS ID_XML_MATRIX                
+     ,   T.ID_PROCID                                                                        AS ID_PROCID                    
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/@versao')                         AS evento_versao               
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/@Id')                   AS evento_Id                   
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/cOrgao')               AS evento_cOrgao                
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/tpAmb')                AS evento_tpAmb                 
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/CNPJ')                 AS evento_CNPJ                  
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/chNFe')                AS evento_chNFe                 
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/dhEvento')             AS evento_dhEvento              
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/tpEvento')             AS evento_tpEvento              
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/nSeqEvento')           AS evento_nSeqEvento            
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/verEvento')            AS evento_verEvento             
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/detEvento/descEvento') AS descEvento                   
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/detEvento/xCorrecao')  AS xCorrecao                    
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/evento/infEvento/detEvento/xCondUso')   AS xCondUso                     
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/retEvento /infEvento/tpAmb ')           AS retEvento_tpAmb              
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/retEvento /infEvento/verAplic ')        AS retEvento_verAplic           
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/retEvento /infEvento/cOrgao ')          AS retEvento_cOrgao             
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/retEvento /infEvento/cStat ')           AS retEvento_cStat              
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/retEvento /infEvento/xMotivo ')         AS retEvento_xMotivo            
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/retEvento /infEvento/chNFe ')           AS retEvento_chNFe              
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/retEvento /infEvento/tpEvento ')        AS retEvento_tpEvento           
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/retEvento /infEvento/nSeqEvento ')      AS retEvento_nSeqEvento         
+     ,   EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/retEvento /infEvento/nProt ')           AS retEvento_nProt              
+     , T.NM_USUARIO                                                                         as NM_USUARIO                   
+     , TO_CHAR(T.DATA_XML_UPLOAD , 'DD/MM/YYYY')                                            as DATA_CARGA                   
+     , T.NM_XML                                                                             AS NM_XML                       
+     , NULL                                                                                 as  RETEVENTO_XEVENTO           
+     , NULL                                                                                 AS  ID_XML_MATRIX_PARENTS                     
+  FROM TB_XML_MATRIX  T,                                                                                                    
+       TABLE (
+           XMLSEQUENCE (
+               EXTRACT (t.xmls,
+                        'procEventoNFe',
+                        'xmlns="http://www.portalfiscal.inf.br/nfe"'))) x07
+     WHERE NOT EXISTS 
+          ( SELECT 1
+               FROM TB_XML_CANC A
+              WHERE A.ID_PROCID = T.ID_PROCID
+              AND   A.ID_XML_MATRIX = T.ID_XML_MATRIX
+             );
+
+    END PRC_INS_XML_CANC_NFE ;
+/
+
+
+DROP PROCEDURE "APEX"."PRC_INS_XML_CAPA_CFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_INS_XML_CAPA_CFE
+       AS
+         BEGIN         
+           INSERT INTO TB_XML_CAPA_CFE
+              SELECT
+                  NULL  id_XML_CAPA_CFE
+                , T.ID_XML_MATRIX 
+                , T.ID_PROCID
+                , T.NM_XML
+                , B02_IDE_CUF                      
+                , B03_IDE_CNF                      
+                , B04_IDE_MOD                      
+                , B05_IDE_NSERIESAT                
+                , B06_IDE_NCFE                     
+                , B07_IDE_DEMI                     
+                , B08_IDE_HEMI                     
+                , B09_IDE_CDV                      
+                , B10_IDE_TPAMB                    
+                , B11_IDE_CNPJ                     
+                , B14_IDE_NUMEROCAIXA              
+                -- Grupo de identificação do emiten
+                , C02_emit_cnpj                    
+                , C03_emit_xnome                   
+                , C04_emit_xfant                   
+                -- Grupo do Endereço do emitente   
+                , C06_ENDEREMIT_XLGR               
+                , C07_ENDEREMIT_NRO                
+                , C08_ENDEREMIT_XCPL               
+                , C09_ENDEREMIT_XBAIRRO            
+                , C10_ENDEREMIT_XMUN               
+                , C11_ENDEREMIT_CEP                
+                , C12_ENDEREMIT_IE                 
+                , C13_ENDEREMIT_IM                 
+                , C14_ENDEREMIT_CREGTRIB           
+                , C15_ENDEREMIT_CREGTRIBISSQN      
+                , C16_ENDEREMIT_INDRATISSQN_EMIT   
+                 --  E - Identificação do Destinatá
+                , E02_DEST_CPF                     
+                , E03_DEST_CNPJ                    
+                , E03_DEST_XNOME                   
+                 -- G - IDENTIFICAÇÃO DO LOCAL DE E
+                , G02_ENTREGA_XLGR                 
+                , G03_ENTREGA_NRO                  
+                , G04_ENTREGA_XCPL                 
+                , G05_ENTREGA_XBAIRRO              
+                , G06_ENTREGA_XMUN                 
+                , G07_ENTREGA_UF
+                , TO_DATE(TO_CHAR(T.DATA_XML_UPLOAD,'DD/MM/YYYY'), 'DD/MM/YYYY') DATA_CARGA 
+                , T.NM_USUARIO  
+                , infcfe 
+                , null  
+                FROM tb_xml_matrix t
+                 , XMLTABLE ( '/CFe/infCFe'
+                              PASSING t.xmls
+                              COLUMNS -- A - DADOS DO CUPOM FISCAL ELETRÔNICO
+                                      infcfe VARCHAR2 ( 100 )         PATH '@Id'
+                                    , versao VARCHAR2 ( 100 )         PATH '@versao'
+                                    , versaodadosent VARCHAR2 ( 100 ) PATH '@versaoDadosEnt'
+                                    , versaosb VARCHAR2 ( 100 )       PATH '@versaoSB' 
+                                    --- B - IDENTIFICAÇÃO DO CUPOM FISCAL ELETRÔNICO
+                                    , B02_IDE_CUF                       VARCHAR2 ( 2 )  PATH 'ide/cUF'
+                                    , B03_IDE_CNF                       VARCHAR2 ( 6 )  PATH 'ide/cNF'
+                                    , B04_IDE_MOD                       VARCHAR2 ( 2 )  PATH 'ide/mod'
+                                    , B05_IDE_NSERIESAT                 VARCHAR2 ( 9 )  PATH 'ide/nserieSAT'
+                                    , B06_IDE_NCFE                      VARCHAR2 ( 6 )  PATH 'ide/nCFe'
+                                    , B07_IDE_DEMI                      VARCHAR2 ( 8 )  PATH 'ide/dEmi'
+                                    , B08_IDE_HEMI                      VARCHAR2 ( 6 )  PATH 'ide/hEmi'
+                                    , B09_IDE_CDV                       VARCHAR2 ( 1 )  PATH 'ide/cDV'
+                                    , B10_IDE_TPAMB                     VARCHAR2 ( 1 )  PATH 'ide/tpAmb'
+                                    , B11_IDE_CNPJ                      VARCHAR2 ( 14)  PATH 'ide/CNPJ'
+                                    , B14_IDE_NUMEROCAIXA               VARCHAR2 ( 3 )  PATH 'ide/numeroCaixa'
+                                    -- Grupo de identificação do emitente do CF-e      
+                                    , C02_emit_cnpj                     VARCHAR2 ( 60 ) PATH 'emit/CNPJ'
+                                    , C03_emit_xnome                    VARCHAR2 ( 60 ) PATH 'emit/xNome'
+                                    , C04_emit_xfant                    VARCHAR2 ( 60 ) PATH 'emit/xFant'
+                                    -- Grupo do Endereço do emitente         
+                                    , C06_ENDEREMIT_XLGR                VARCHAR2 ( 60 ) PATH 'emit/enderEmit/xLgr'
+                                    , C07_ENDEREMIT_NRO                 VARCHAR2 ( 60 ) PATH 'emit/enderEmit/nro'
+                                    , C08_ENDEREMIT_XCPL                VARCHAR2 ( 60 ) PATH 'emit/enderEmit/xCpl'
+                                    , C09_ENDEREMIT_XBAIRRO             VARCHAR2 ( 60 ) PATH 'emit/enderEmit/xBairro'
+                                    , C10_ENDEREMIT_XMUN                VARCHAR2 ( 60 ) PATH 'emit/enderEmit/xMun'
+                                    , C11_ENDEREMIT_CEP                 VARCHAR2 ( 8 )  PATH 'emit/enderEmit/CEP'
+                                    , C12_ENDEREMIT_IE                  VARCHAR2 ( 60 ) PATH 'emit/IE'
+                                    , C13_ENDEREMIT_IM                  VARCHAR2 ( 15 ) PATH 'emit/IM'
+                                    , C14_ENDEREMIT_CREGTRIB            VARCHAR2 ( 1 )  PATH 'emit/cRegTrib'
+                                    , C15_ENDEREMIT_CREGTRIBISSQN       VARCHAR2 ( 1 )  PATH 'emit/cRegTribISSQN'
+                                    , C16_ENDEREMIT_INDRATISSQN_EMIT    VARCHAR2 ( 1 )  PATH 'emit/indRatISSQN'
+                                     --  E - Identificação do Destinatário do Cupom Fiscal Eletrônico 
+                                    , E02_DEST_CPF                      VARCHAR2 ( 14 )    PATH 'dest/CPF'
+                                    , E03_DEST_CNPJ                     VARCHAR2 ( 14 )    PATH 'dest/CNPJ'
+                                    , E03_DEST_XNOME                    VARCHAR2 ( 60 )    PATH 'dest/xNome'
+                                     -- G - IDENTIFICAÇÃO DO LOCAL DE ENTREGA
+                                    , G02_ENTREGA_XLGR                  VARCHAR2 ( 60 )    PATH 'entrega/xLgr'
+                                    , G03_ENTREGA_NRO                   VARCHAR2 ( 60 )    PATH 'entrega/nro'
+                                    , G04_ENTREGA_XCPL                  VARCHAR2 ( 60 )    PATH 'entrega/xCpl'
+                                    , G05_ENTREGA_XBAIRRO               VARCHAR2 ( 60 )    PATH 'entrega/xBairro'
+                                    , G06_ENTREGA_XMUN                  VARCHAR2 ( 60 )    PATH 'entrega/xMun'
+                                    , G07_ENTREGA_UF                    VARCHAR2 ( 60 )    PATH 'entrega/UF'
+                                        )  x07   
+                                    WHERE  
+                                      1=1 
+                                      AND  NOT  EXISTS   ( SELECT  1
+                                                FROM  TB_XML_CAPA_CFE CFE
+                                                WHERE CFE.ID_XML_MATRIX = T.ID_XML_MATRIX 
+                                              ) ;
+                                   EXCEPTION 
+                                    WHEN OTHERS THEN 
+                                     RAISE;
+                                     --
+                                  END PRC_INS_XML_CAPA_CFE;
+/
+
+
+DROP PROCEDURE "APEX"."PRC_INS_XML_CAPA_NFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_INS_XML_CAPA_NFE
+         IS 
+         BEGIN
+          INSERT INTO TB_XML_CAPA_DFE
+          SELECT
+              NULL                                                                                              AS ID_XML_CAPA_NFE,
+              T.ID_XML_MATRIX                                                                                   AS ID_XML_MATRIX,
+              T.ID_PROCID                                                                                       AS ID_PROCID,
+              T.NM_XML                                                                                          AS NM_XML,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/@versao')                                            AS VERSAO,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/@Id')                                                AS ID    ,
+              --B - Identificação da Nota Fiscal eletrônica
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/cUF')                                            AS B02_CUF,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/cNF')                                            AS B03_CNF,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/natOp')                                          AS B04_NATOP,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/indPag')                                         AS B05_INDPAG,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/mod')                                            AS B06_MOD,--
+              --
+              SUBSTR(EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/dhEmi'),9,2)||'/'||
+              SUBSTR(EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/dhEmi'),6,2)||'/'||
+              SUBSTR(EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/dhEmi'),1,4)                              AS B09_DHEMI,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/dSaiEnt')                                        AS B10_DSAIENT,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/tpNF')                                           AS B11_TPNF   ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/cMunFG')                                         AS B12_CMUNFG ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/refNFe')                                         AS B13_REFNFE ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/cUF')                                            AS B15_CUF    ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/AAMM')                                           AS B16_AAMM   ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/CNPJ')                                           AS B17_CNPJ   ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/mod')                                            AS B18_MOD    ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/serie')                                          AS B19_SERIE  ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/nNF')                                            AS B20_NNF    ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/tpImp')                                          AS B21_TPIMP  ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/tpEmis')                                         AS B22_TPEMIS ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/cDV')                                            AS B23_CDV    ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/tpAmb')                                          AS B24_TPAMB  ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/finNFe')                                         AS B25_FINNFE ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/procEmi')                                        AS B26_PROCEMI,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/verProc')                                        AS B27_VERPROC,
+              --
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/CNPJ')                                          AS C02_CNPJ,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/CPF')                                           AS C02A_CPF,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/xNome')                                         AS C03_XNOME,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/xFant')                                         AS C04_XFANT,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/xLgr')                                AS C06_XLGR,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/nro')                                 AS C07_NRO,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/xCpl')                                AS C08_XCPL,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/xBairro')                             AS C09_XBAIRRO,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/cMun')                                AS C10_CMUN,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/xMun')                                AS C11_XMUN,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/UF')                                  AS C12_UF,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/CEP')                                 AS C13_CEP,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/cPais')                               AS C14_CPAIS,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/xPais')                               AS C15_XPAIS,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/enderEmit/fone')                                AS C16_FONE,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/IE')                                            AS C17_IE,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/IEST')                                          AS C18_IEST,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/IM')                                            AS C19_IM,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/CNAE')                                          AS C20_CNAE,
+              EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/CRT')                                           AS C21_CRT ,
+                --  D - Identificação do Fisco Emitente da NF-e
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/CNPJ')                                          AS D02_CNPJ,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/xOrgao')                                        AS D03_XORGAO,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/matr')                                          AS D04_MATR,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/xAgente')                                       AS D05_XAGENTE,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/fone')                                          AS D06_FONE,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/UF')                                            AS D07_UF,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/nDAR')                                          AS D08_NDAR,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/dEmi')                                          AS D09_DEMI,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/vDAR')                                          AS D10_VDAR,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/repEmi')                                        AS D11_REPEMI,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/avulsa/dPag')                                           AS D12_DPAG ,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/CNPJ')                                              AS E02_CNPJ,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/CPF')                                               AS E04_CPF,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/xNome')                                             AS E05_XNOME,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/xLgr')                                    AS E06_XLGR,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/nro')                                     AS E07_NRO,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/xCpl')                                    AS E08_XCPL,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/xBairro')                                 AS E09_XBAIRRO,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/cMun')                                    AS E10_CMUN,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/xMun')                                    AS E11_XMUN,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/UF')                                      AS E12_UF,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/CEP')                                     AS E13_CEP,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/cPais')                                   AS E14_CPAIS,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/xPais')                                   AS E15_XPAIS,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/fone')                                    AS E16_FONE,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/IE')                                      AS E17_IE,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/ISUF')                                    AS E18_ISUF,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/dest/enderDest/email')                                   AS E19_EMAIL,
+                T.NM_USUARIO,
+                T.NM_USUARIO,
+                TO_CHAR(T.DATA_XML_UPLOAD,'DD/MM/YYYY') DATA_XML_UPLOAD ,
+                 EXTRACTVALUE (VALUE  (x07), 'procEventoNFe/retEvento /infEvento/nProt ')                    AS retEvento_nProt,
+                 EXTRACTVALUE(VALUE(X07),'/nfeProc/protNFe/infProt/tpAmb')                                   AS PR05_TPAMB,
+                 EXTRACTVALUE(VALUE(X07),'/nfeProc/protNFe/infProt/verAplic')                                AS PR06_VERAPLIC,
+                 EXTRACTVALUE(VALUE(X07),'/nfeProc/protNFe/infProt/chNFe')                                   AS PR07_CHNFE,
+                 EXTRACTVALUE(VALUE(X07),'/nfeProc/protNFe/infProt/dhRecbto')                                AS PR08_DHRECBTO,
+                 EXTRACTVALUE(VALUE(X07),'/nfeProc/protNFe/infProt/nProt')                                   AS PR09_NPROT,
+                 EXTRACTVALUE(VALUE(X07),'/nfeProc/protNFe/infProt/xMotivo')                                 AS PR12_XMOTIVO,
+                 NULL
+               FROM TB_XML_MATRIX T,
+            TABLE(XMLSEQUENCE(EXTRACT(T.XMLS ,'nfeProc','xmlns="http://www.portalfiscal.inf.br/nfe"'))) X07
+            WHERE 1=1
+           AND  NOT EXISTS  
+            (  SELECT 1 
+                 FROM  TB_XML_CAPA_DFE a
+                WHERE a.id_xml_matrix = t.id_xml_matrix
+               );
+            EXCEPTION 
+            WHEN OTHERS THEN 
+              RAISE ;
+           END PRC_INS_XML_CAPA_NFE;
+/
+
+
+DROP PROCEDURE "APEX"."PRC_INS_XML_IMPOSTO_CFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_INS_XML_IMPOSTO_CFE
+AS
+BEGIN
+EXECUTE IMMEDIATE 
+'alter session set NLS_NUMERIC_CHARACTERS = ''.,''';
+INSERT INTO tb_xml_imposto_cfe
+    SELECT  
+       NULL    
+     , t.ID_XML_MATRIX
+     , t.ID_PROCID
+     , NITEM
+     , Q07_PISALIQ_CST                    
+     , Q08_PISALIQ_vBC                    
+     , Q09_PISALIQ_pPIS                   
+     , Q010_PISALIQ_vPIS                  
+     , Q07_PISQtde_CST                    
+     , Q11_PISQtde_qBCProd                
+     , Q12_PISQtde_vAliqProd              
+     , Q10_PISQtde_vPIS                   
+     , Q04_PISNT_CST                      
+     , Q05_PISSN_CST                      
+     , Q07_PISOUTR_CST                    
+     , Q08_PISOUTR_vBC                    
+     , Q09_PISOUTR_pPIS                   
+     , Q11_PISOUTR_qBCProd                
+     , Q12_PISOUTR_vAliqProd              
+     , Q10_PISOUTR_vPIS                   
+     , R02_PISST_vBC                      
+     , R03_PISST_pPIS                     
+     , R04_PISST_qBCProd                  
+     , R05_PISST_vAliqProd                
+     , R06_PISST_vPIS                     
+     , S07_COFINSALIQ_CST                 
+     , S08_COFINSALIQ_COFINS_vBC          
+     , S09_COFINSALIQ_COFINS_pCOFINS      
+     , S10_COFINSALIQ_COFINS_vCOFINS      
+     , S07_COFINSQTDE_CST                 
+     , S08_COFINSQTDE_QBCPROD             
+     , S09_COFINSQTDE_VALIQPROD           
+     , S10_COFINSQTDE_PCOFINS             
+     , S07_COFINSNT_CST                   
+     , S07_COFINSSN_CST                   
+     , S07_COFINSOUTR_CST                 
+     , S08_COFINSOUTR_vBC                 
+     , S09_COFINSOUTR_pCOFINS             
+     , S11_COFINSOUTR_qBCProd             
+     , S12_COFINSOUTR_vAliqProd           
+     , S10_COFINSOUTR_vCOFINS             
+     , T02_COFINSST_vBC                   
+     , T03_COFINSST_PCOFINS               
+     , T04_COFINSST_QBCPROD               
+     , T05_COFINSST_VALIQPROD             
+     , T06_COFINSST_VCOFINS
+     , TO_CHAR(T.DATA_XML_UPLOAD, 'DD/MM/YYYY')    DATA_XML_UPLOAD
+     , T.NM_USUARIO  
+   from tb_xml_matrix t
+       , xmltable( '/CFe/infCFe//det'
+         passing t.xmls
+           columns 
+             NITEM                              VARCHAR2(3)     PATH '@nItem' 
+           , Q07_PISALIQ_CST                    VARCHAR2(2)     PATH '//imposto/PIS/PISAliq/CST'
+           , Q08_PISALIQ_vBC                    NUMBER(15,2)    PATH '//imposto/PIS/PISAliq/vBC'
+           , Q09_PISALIQ_pPIS                   NUMBER(5,4 )    PATH '//imposto/PIS/PISAliq/pPIS' 
+           , Q010_PISALIQ_vPIS                  NUMBER(15,2)    PATH '//imposto/PIS/PISAliq/vPIS' 
+           , Q07_PISQtde_CST                    VARCHAR2(2)     PATH '//imposto/PIS/PISQtde/CST'
+           , Q11_PISQtde_qBCProd                NUMBER(16,4)    PATH '//imposto/PIS/PISQtde/qBCProd'
+           , Q12_PISQtde_vAliqProd              NUMBER(15,4)    PATH '//imposto/PIS/PISQtde/vAliqProd'
+           , Q10_PISQtde_vPIS                   NUMBER(15,2)    PATH '//imposto/PIS/PISQtde/vPIS'        
+           , Q04_PISNT_CST                      VARCHAR2( 2 )  PATH '//imposto/PIS/PISNT/CST'               
+           , Q05_PISSN_CST                      VARCHAR2( 2 )  PATH '//imposto/PIS/PISSN/CST'
+           , Q07_PISOUTR_CST                    VARCHAR2( 2 )  PATH '//imposto/PIS/PISOutr/CST'
+           , Q08_PISOUTR_vBC                    NUMBER(15,2)    PATH '//imposto/PIS/PISOutr/vBC'
+           , Q09_PISOUTR_pPIS                   NUMBER(5,4 )    PATH '//imposto/PIS/PISOutr/pPIS' 
+           , Q11_PISOUTR_qBCProd                NUMBER(16,4)    PATH '//imposto/PIS/PISOutr/qBCProd' 
+           , Q12_PISOUTR_vAliqProd              NUMBER(15,4)    PATH '//imposto/PIS/PISOutr/vAliqProd' 
+           , Q10_PISOUTR_vPIS                   NUMBER(15,2)    PATH '//imposto/PIS/PISOutr/vPIS' 
+           , R02_PISST_vBC                      NUMBER(15,2)    PATH '//imposto/PIS/PISST/vBC'
+           , R03_PISST_pPIS                     NUMBER(5,4 )    PATH '//imposto/PIS/PISST/pPIS' 
+           , R04_PISST_qBCProd                  NUMBER(15,4 )   PATH '//imposto/PIS/PISST/qBCProd' 
+           , R05_PISST_vAliqProd                NUMBER(15,5 )   PATH '//imposto/PIS/PISST/vAliqProd' 
+           , R06_PISST_vPIS                     NUMBER(15,2 )   PATH '//imposto/PIS/PISST/vPIS'   
+           , S07_COFINSALIQ_CST                 VARCHAR2 ( 2)   PATH '//imposto/COFINS/COFINSAliq/CST'  
+           , S08_COFINSALIQ_COFINS_vBC          NUMBER(15,2 )   PATH '//imposto/COFINS/COFINSAliq/vBC'  
+           , S09_COFINSALIQ_COFINS_pCOFINS      NUMBER(5,4 )    PATH '//imposto/COFINS/COFINSAliq/pCOFINS'
+           , S10_COFINSALIQ_COFINS_vCOFINS      NUMBER(15,2 )   PATH '//imposto/COFINS/COFINSAliq/vCOFINS' 
+           , S07_COFINSQTDE_CST                 VARCHAR2(2 )    PATH '//imposto/COFINS/COFINSQtde/CST'  
+           , S08_COFINSQTDE_QBCPROD             NUMBER(16,4 )   PATH '//imposto/COFINS/COFINSQtde/qBCProd'  
+           , S09_COFINSQTDE_VALIQPROD           NUMBER(16,4 )   PATH '//imposto/COFINS/COFINSQtde/vAliqProd'  
+           , S10_COFINSQTDE_PCOFINS             NUMBER(15,4 )   PATH '//imposto/COFINS/COFINSQtde/vCOFINS'
+           , S07_COFINSNT_CST                   VARCHAR2 ( 2 )  PATH '//imposto/COFINS/COFINSNT/CST'
+           , S07_COFINSSN_CST                   VARCHAR2 ( 2 )  PATH '//imposto/COFINS/COFINSSN/CST' 
+           , S07_COFINSOUTR_CST                 VARCHAR2 ( 2 )  PATH '//imposto/COFINS/COFINSOutr/CST'  
+           , S08_COFINSOUTR_vBC                 NUMBER(15,2 )   PATH '//imposto/COFINS/COFINSOutr/vBC'  
+           , S09_COFINSOUTR_pCOFINS             NUMBER(5,4 )    PATH '//imposto/COFINS/COFINSOutr/pCOFINS'
+           , S11_COFINSOUTR_qBCProd             NUMBER(16,4 )   PATH '//imposto/COFINS/COFINSOutr/qBCProd'
+           , S12_COFINSOUTR_vAliqProd           NUMBER(15,4 )   PATH '//imposto/COFINS/COFINSOutr/vAliqProd'
+           , S10_COFINSOUTR_vCOFINS             NUMBER(15,2 )   PATH '//imposto/COFINS/COFINSOutr/vCOFINS'
+           , T02_COFINSST_vBC                   NUMBER(15,2 )   PATH '//imposto/COFINS/COFINSST/vBC'  
+           , T03_COFINSST_PCOFINS               NUMBER(5,4 )    PATH '//imposto/COFINS/COFINSST/pCOFINS'  
+           , T04_COFINSST_QBCPROD               NUMBER(16,4 )   PATH '//imposto/COFINS/COFINSST/qBCProd'
+           , T05_COFINSST_VALIQPROD             NUMBER(15,4 )   PATH '//imposto/COFINS/COFINSST/vAliqProd'
+           , T06_COFINSST_VCOFINS               NUMBER(15,2 )   PATH '//imposto/COFINS/COFINSST/vCOFINS'  
+               ) x08
+             WHERE 1 = 1
+              AND  NOT EXISTS 
+               ( SELECT 1
+                   FROM tb_xml_imposto_cfe A 
+                   WHERE A.ID_XML_MATRIX = t.ID_XML_MATRIX)
+                 ORDER BY t.ID_XML_MATRIX ;
+           EXCEPTION 
+            WHEN OTHERS THEN 
+             RAISE ;
+          END PRC_INS_XML_IMPOSTO_CFE;
+/
+
+
+DROP PROCEDURE "APEX"."PRC_INS_XML_IMPOSTO_NFE";
+
+CREATE OR REPLACE PROCEDURE "APEX"."PRC_INS_XML_IMPOSTO_NFE" 
+AS
+BEGIN
+--  ALTER TABLE TB_XML_IMPOSTO_NFE  ADD ( RETEVENTO_NPROT  NUMBER )
+EXECUTE IMMEDIATE 'ALTER SESSION SET NLS_NUMERIC_CHARACTERS=''.,''';
+EXECUTE IMMEDIATE 'alter session set nls_date_format = ''DD/MM/YYYY''';    
+--
+INSERT INTO TB_XML_IMPOSTO_NFE
+SELECT 
+    NULL   
+  , t.id_xml_matrix 
+  , t.id_procid
+  , t.nm_xml
+  , h02_nitem     
+  -- imposto
+  -- Grupo de PIS tributado pela alíquota
+       , Q06_PISAliq_CST     
+       , Q07_PISAliq_vBC    
+       , Q08_PISAliq_pPIS   
+       , Q09_PISAliq_vPIS   
+       --
+      , Q06_PISQtde_CST       
+      , Q10_PISQtde_qBCProd   
+      , Q11_PISQtde_vAliqProd 
+      , Q09_PISQtde_vPIS  
+      , Q06_PISOutr_CST         
+      , Q07_PISOutr_vBC       
+      , Q08_PISOutr_pPIS      
+      , Q10_PISOutr_qBCProd   
+      , Q11_PISOutr_vAliqProd
+      , Q09_PISOutr_vPIS
+   --
+        , S06_COFINSAliq_CST     
+        , S07_COFINSAliq_vBC     
+        , S08_COFINSAliq_pCOFINS 
+        , S011_COFINSAliq_vCOFINS
+         --   Grupo do COFINS   (
+        , S06_COFINSQtde_CST     
+        , S09_COFINSQtde_vBC     
+        , S10_COFINSQtde_pCOFINS 
+        , S011_COFINSQtde_vCOFINS
+        --
+       , S06_COFINSNT_CST        
+       --
+        , S06_COFINSOutr_CST       
+        , S07_COFINSOutr_vBC       
+        , S08_COFINSOutr_pCOFINS   
+        , S09_COFINSOutr_qBCProd   
+        , S10_COFINSOutr_vAliqProd 
+        , S11_COFINSOutr_vCOFINS 
+        , t.NM_USUARIO   
+        , TO_DATE(TO_CHAR(t.data_xml_upload, 'DD/MM/YYYY'))    DATA_CARGA
+        , NULL   
+   FROM tb_xml_matrix t
+     , XMLTABLE ( xmlnamespaces ( DEFAULT 'http://www.portalfiscal.inf.br/nfe' )
+                , 'nfeProc/NFe/infNFe/det'
+                  PASSING t.xmls
+                  COLUMNS  --  H - Detalhamento de Produtos e Serviços da NF-e
+                           --  I - Produtos e Serviços da NF-e 
+                          H02_nItem             NUMBER         PATH '/det/@nItem' 
+                         -- Grupo de PIS tributado pela alíquota (PISAliq) 
+                         , Q06_PISAliq_CST       VARCHAR2(20)  PATH  'imposto/PIS/PISAliq/CST'
+                         , Q07_PISAliq_vBC       VARCHAR2(20)  PATH  'imposto/PIS/PISAliq/vBC'  
+                         , Q08_PISAliq_pPIS      VARCHAR2(20)  PATH   'imposto/PIS/PISAliq/pPIS'
+                         , Q09_PISAliq_vPIS      VARCHAR2(20)  PATH   'imposto/PIS/PISAliq/vPIS'
+                         -- Grupo de PIS tributado pela alíquota (PISQtde)     
+                         , Q06_PISQtde_CST       VARCHAR2(20)  PATH  'imposto/PIS/PISQtde/CST'
+                         , Q10_PISQtde_qBCProd   VARCHAR2(20)  PATH  'imposto/PIS/PISQtde/qBCProd'
+                         , Q11_PISQtde_vAliqProd VARCHAR2(20)  PATH  'imposto/PIS/PISQtde/vAliqProd'
+                         , Q09_PISQtde_vPIS      VARCHAR2(20)  PATH  'imposto/PIS/PISQtde/vPIS'
+                         --  Grupo de PIS não tributado  (PISNT)                    
+                         , Q02_PISNT_CST         VARCHAR2(20)   PATH  'imposto/PIS/PISNT/CST'
+                         -- 
+                         , Q06_PISOutr_CST         VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/CST'
+                         , Q07_PISOutr_vBC         VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/vBC'
+                         , Q08_PISOutr_pPIS        VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/pPIS'
+                         , Q10_PISOutr_qBCProd     VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/qBCProd'    
+                         , Q11_PISOutr_vAliqProd   VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/vAliqProd'   
+                         , Q09_PISOutr_vPIS        VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/vPIS'  
+                         --   Grupo do COFINS   (COFINSAliq)
+                         , S06_COFINSAliq_CST      VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/CST' 
+                         , S07_COFINSAliq_vBC      VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/vBC' 
+                         , S08_COFINSAliq_pCOFINS  VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/pCOFINS' 
+                         , S011_COFINSAliq_vCOFINS VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/vCOFINS' 
+                          --   Grupo do COFINS   (COFINSQtde) 
+                         , S06_COFINSQtde_CST      VARCHAR2(20)   PATH  'imposto/COFINS/COFINSQtde/CST' 
+                         , S09_COFINSQtde_vBC      VARCHAR2(20)   PATH  'imposto/COFINSCOFINS/COFINSAliq/qBCProd' 
+                         , S10_COFINSQtde_pCOFINS  VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/vAliqProd' 
+                         , S011_COFINSQtde_vCOFINS VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/vCOFINS'       
+                         --
+                        , S06_COFINSNT_CST         VARCHAR2(20)   PATH  'imposto/COFINS/COFINSNT/CST'   
+                        -- Grupo de COFINS Outras Operações ( COFINSOutr )
+                        , S06_COFINSOutr_CST           VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/CST'  
+                        , S07_COFINSOutr_vBC           VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/vBC'  
+                        , S08_COFINSOutr_pCOFINS       VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/pCOFINS'  
+                        , S09_COFINSOutr_qBCProd       VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/qBCProd'  
+                        , S10_COFINSOutr_vAliqProd     VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/vAliqProd'  
+                        , S11_COFINSOutr_vCOFINS       VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/vCOFINS'                 
+                        ) x 
+ WHERE 1 = 1
+    -- AND  T.CANC IS NULL   
+    AND t.status is null    --  não há duplicado 
+ AND  NOT EXISTS
+   ( SELECT 1
+        FROM TB_XML_IMPOSTO_NFE A
+      WHERE A.ID_PROCID = t.ID_PROCID
+        AND A.ID_XML_MATRIX = t.ID_XML_MATRIX    
+             )
+
+ ;
+  EXCEPTION 
+  WHEN OTHERS THEN 
+    RAISE;
+  END PRC_INS_XML_IMPOSTO_NFE;
+/
+
+
+DROP PROCEDURE "APEX"."PRC_INS_XML_ITEM_CFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_INS_XML_ITEM_CFE
+AS
+ BEGIN
+ EXECUTE IMMEDIATE
+ 'alter session set NLS_NUMERIC_CHARACTERS = ''.,''';
+ DELETE TB_XML_ITEM_CFE;
+  
+  INSERT INTO TB_XML_ITEM_CFE
+   SELECT 
+          NULL                                                    as ID_XML_ITEM_CFE 
+        , t.id_procid                                               as id_procid  
+        , t.id_xml_matrix                                           as id_xml_matrix
+        , t.nm_xml                                                  as nm_xml
+       --
+         , H02_det_nItem           
+         , I02_prod_cProd          
+         , I03_prod_cEAN           
+         , I04_prod_xProd          
+         , I05_prod_NCM            
+         , I06_prod_CFOP           
+         , I07_prod_uCom           
+         , I08_prod_qCom           
+         , I09_prod_vUnCom         
+         , I10_prod_vProd          
+         , I11_prod_indRegra       
+         , I12_prod_vItem          
+         , I13_prod_vOutro         
+         , I14_prod_vItem          
+         , I15_prod_vRatDesc
+         , TO_CHAR(t.DATA_XML_UPLOAD,'DD/MM/YYYY')      AS DATA_GARGA
+          ,t.NM_USUARIO
+     from tb_xml_matrix t
+       , xmltable( '/CFe/infCFe//det'
+         passing t.xmls
+           columns 
+              H02_det_nItem             VARCHAR2(100)     PATH '@nItem'            
+            , I02_prod_cProd            VARCHAR2(100)     PATH '//prod/cProd'   
+            , I03_prod_cEAN             VARCHAR2(100)     PATH '//prod/cEAN' 
+            , I04_prod_xProd            VARCHAR2(100)     PATH '//prod/xProd'
+            , I05_prod_NCM              VARCHAR2(100)     PATH '//prod/NCM'        
+            , I06_prod_CFOP             VARCHAR2(100)     PATH '//prod/CFOP'       
+            , I07_prod_uCom             VARCHAR2(100)     PATH '//prod/uCom'       
+            , I08_prod_qCom             VARCHAR2(100)     PATH '//prod/qCom'       
+            , I09_prod_vUnCom           VARCHAR2(100)     PATH '//prod/vUnCom'     
+            , I10_prod_vProd            VARCHAR2(100)     PATH '//prod/vProd'      
+            , I11_prod_indRegra         VARCHAR2(100)     PATH '//prod/indRegra'   
+            , I12_prod_vItem            VARCHAR2(100)     PATH '//prod/vDesc'   
+            , I13_prod_vOutro           VARCHAR2(100)     PATH '//prod/vOutro'
+            , I14_prod_vItem            VARCHAR2(100)     PATH '//prod/vItem'
+            , I15_prod_vRatDesc         VARCHAR2(100)     PATH '//prod/vRatDesc '
+            )  x08 
+            WHERE 1=1 
+            AND NOT EXISTS( SELECT 1 
+                    FROM TB_XML_ITEM_CFE a
+                  WHERE  t.ID_XML_MATRIX = a.ID_XML_MATRIX) ;  
+            COMMIT ;
+            EXCEPTION
+            WHEN OTHERS THEN 
+            RAISE;
+            END ;
+/
+
+
+DROP PROCEDURE "APEX"."PRC_INS_XML_ITEM_NFE";
+
+CREATE OR REPLACE PROCEDURE "APEX"."PRC_INS_XML_ITEM_NFE" 
+AS
+BEGIN
+
+     EXECUTE IMMEDIATE 'ALTER SESSION SET NLS_NUMERIC_CHARACTERS='',.''';
+     EXECUTE IMMEDIATE 'alter session set nls_date_format = ''DD/MM/YYYY''';
+
+--     ALTER  TABLE   TB_XML_ITEM_NFE ADD( RETEVENTO_NPROT NUMBER )
+INSERT INTO  TB_XML_ITEM_NFE
+SELECT
+   NULL  ID_xml_item_NFE
+  , t.ID_XML_MATRIX 
+  , t.ID_PROCID
+  , t.nm_xml
+  , H02_nItem     
+  , I02_cProd     
+  , I03_cEAN      
+  , I04_xProd     
+  , I05_NCM       
+  , I06_EXTIPI    
+  , I08_CFOP      
+  , I09_uCom      
+  , REPLACE (I10_qCom, '.', ',')     I10_qCom
+  , REPLACE(I10A_VUNCOM, '.', ',')   I10A_VUNCOM
+  , REPLACE (I11_VPROD, '.',',')     I11_VPROD
+  , I12_cEANTrib  
+  , REPLACE(I13_uTrib, '.',',')      I13_uTrib
+  , REPLACE(I14_qTrib, '.',',')      I14_qTrib     
+  , REPLACE(I14a_vUnTrib, '.',',')   I14a_vUnTrib       
+  , REPLACE (I15_vFrete, '.', ',')   I15_vFrete 
+  , REPLACE (I16_vSeg, '.', ',')     I16_vSeg      
+  , REPLACE (I17_vDesc,'.', ',')     I17_vDesc  
+  , REPLACE (I17a_vOutro,'.', ',')   I17a_vOutro 
+  , I17b_indTot 
+  , to_CHAR(t.data_xml_upload, 'DD/MM/YYYY') DATA_CARGA
+  , T.NM_USUARIO  
+  , NULL
+ -- , NULL 
+ FROM tb_xml_matrix t
+     , XMLTABLE ( xmlnamespaces ( DEFAULT 'http://www.portalfiscal.inf.br/nfe' )
+                , 'nfeProc/NFe/infNFe/det'
+                  PASSING t.xmls
+                  COLUMNS  --  H - Detalhamento de Produtos e Serviços da NF-e
+                           --  I - Produtos e Serviços da NF-e 
+                          H02_nItem             NUMBER         PATH '/det/@nItem' 
+                        , I02_cProd             VARCHAR2(60)   PATH  'prod/cProd'
+                        , I03_cEAN              VARCHAR2(60)   PATH  'prod/cEAN'
+                        , I04_xProd             VARCHAR2(8)    PATH  'prod/xProd' 
+                        , I05_NCM               VARCHAR2(120)  PATH  'prod/NCM' 
+                        , I06_EXTIPI            VARCHAR2(120)  PATH  'prod/EXTIPI' 
+                        , I08_CFOP              VARCHAR2(120)  PATH  'prod/CFOP' 
+                        , I09_uCom              VARCHAR2(120)  PATH  'prod/uCom' 
+                        , I10_qCom              VARCHAR2(120)  PATH  'prod/qCom' 
+                        , I10A_VUNCOM           VARCHAR2(20)   PATH  'prod/vUnCom' 
+                        , I11_VPROD             VARCHAR2(20)   PATH  'prod/vProd'
+                        , I12_cEANTrib          VARCHAR2(2)    PATH  'prod/cEANTrib'
+                        , I13_uTrib             VARCHAR2(6)    PATH  'prod/uTrib'
+                        , I14_qTrib             VARCHAR2(15)   PATH  'prod/qTrib'
+                        , I14a_vUnTrib          VARCHAR2(20)   PATH  'prod/vUnTrib' 
+                        , I15_vFrete            VARCHAR2(20)   PATH  'prod/vFrete' 
+                        , I16_vSeg              VARCHAR2(20)   PATH  'prod/vSeg' 
+                        , I17_vDesc             VARCHAR2(20)   PATH  'prod/vDesc' 
+                        , I17a_vOutro           VARCHAR2(20)   PATH  'prod/vOutro' 
+                        , I17b_indTot           VARCHAR2(20)   PATH  'prod/indTot' 
+                        --  Tag da Declaração de Importação   
+                        , I19_nDI               VARCHAR2(10)   PATH  'prod/DI/nDI'
+                        , I20_dDI               VARCHAR2(20)   PATH  'prod/DI/dDI' 
+                        , I21_xLocDesemb        VARCHAR2(60)   PATH  'prod/DI/xLocDesemb' 
+                        , I22_UFDesemb          VARCHAR2(2)    PATH  'prod/DI/UFDesemb' 
+                        , I23_dDesemb           VARCHAR2(20)   PATH  'prod/DI/dDesemb' 
+                        , I24_cExportador       VARCHAR2(60)   PATH  'prod/DI/cExportador'
+                        --  Adições
+                        , I26_nAdicao           VARCHAR2(60)   PATH  'prod/adi/nAdicao'
+                        , I27_nSeqAdic          VARCHAR2(60)   PATH  'prod/adi/nSeqAdic'
+                        , I28_cFabricante       VARCHAR2(60)   PATH  'prod/adi/cFabricante'
+                        , I29_vDescDI           VARCHAR2(60)   PATH  'prod/adi/vDescDI'
+                        , I30_xPed              VARCHAR2(60)   PATH  'prod/adi/xPed'
+                        , I31_nItemPed          VARCHAR2(60)   PATH  'prod/adi/nItemPed'
+                         --  Grupo de Tributação do ICMS= 00
+                        , N11_ICMS00_orig       VARCHAR2(1)    PATH  'imposto/ICMS/ICMS00/orig'
+                        , N12_ICMS00_CST        VARCHAR2(2)    PATH  'imposto/ICMS/ICMS00/CST'
+                        , N13_ICMS00_modBC      VARCHAR2(2)    PATH  'imposto/ICMS/ICMS00/modBC'
+                        , N15_ICMS00_vBC        VARCHAR2(20)   PATH  'imposto/ICMS/ICMS00/vBC'
+                        , N16_ICMS00_pICMS      VARCHAR2(20)   PATH  'imposto/ICMS/ICMS00/pICMS'
+                        , N17_ICMS00_vICMS      VARCHAR2(20)   PATH  'imposto/ICMS/ICMS00/vICMS' 
+                        --  Grupo de Tributação do ICMS = 10
+                        , N11_ICMS10_orig       VARCHAR2(1)    PATH  'imposto/ICMS/ICMS10/orig'
+                        , N12_ICMS10_CST        VARCHAR2(2)    PATH  'imposto/ICMS/ICMS10/CST'
+                        , N13_ICMS10_modBC      VARCHAR2(2)    PATH  'imposto/ICMS/ICMS10/modBC'
+                        , N15_ICMS10_vBC        VARCHAR2(20)   PATH  'imposto/ICMS/ICMS10/vBC'
+                        , N16_ICMS10_pICMS      VARCHAR2(20)   PATH  'imposto/ICMS/ICMS10/pICMS'
+                        , N17_ICMS10_vICMS      VARCHAR2(20)   PATH  'imposto/ICMS/ICMS10/vICMS' 
+                        , N18_ICMS10_modBCST    VARCHAR2(20)   PATH  'imposto/ICMS/ICMS10/modBCST' 
+                        , N19_ICMS10_pMVAST     VARCHAR2(20)   PATH  'imposto/ICMS/ICMS10/pMVAST' 
+                        , N20_ICMS10_pRedBCST   VARCHAR2(20)   PATH  'imposto/ICMS/ICMS10/pRedBCST' 
+                        , N21_ICMS10_vBCST      VARCHAR2(20)   PATH  'imposto/ICMS/ICMS10/vBCST' 
+                        , N22_ICMS10_pICMSST    VARCHAR2(20)   PATH  'imposto/ICMS/ICMS10/pICMSST' 
+                        , N23_ICMS10_vICMSST    VARCHAR2(20)   PATH  'imposto/ICMS/ICMS10/vICMSST'
+                        --   Grupo de Tributação do ICMS = 20
+                        , N11_ICMS20_orig       VARCHAR2(1)    PATH  'imposto/ICMS/ICMS20/orig'
+                        , N12_ICMS20_CST        VARCHAR2(2)    PATH  'imposto/ICMS/ICMS20/CST'
+                        , N13_ICMS20_modBC      VARCHAR2(1)    PATH  'imposto/ICMS/ICMS20/modBC'
+                        , N14_ICMS20_pRedBC     VARCHAR2(2)    PATH  'imposto/ICMS/ICMS20/pRedBC'
+                        , N15_ICMS20_vBC        VARCHAR2(20)   PATH  'imposto/ICMS/ICMS20/vBC'
+                        , N16_ICMS20_pICMS      VARCHAR2(20)   PATH  'imposto/ICMS/ICMS20/pICMS'
+                        , N17_ICMS20_vICMS      VARCHAR2(20)   PATH  'imposto/ICMS/ICMS20/vICMS'   
+                            --   Grupo de Tributação do ICMS = 30
+                        , N11_ICMS30_orig       VARCHAR2(1)    PATH  'imposto/ICMS/ICMS30/orig'
+                        , N12_ICMS30_CST        VARCHAR2(2)    PATH  'imposto/ICMS/ICMS30/CST'
+                        , N18_ICMS30_modBCST      VARCHAR2(2)  PATH  'imposto/ICMS/ICMS30/modBCST'
+                        , N19_ICMS30_pMVAST     VARCHAR2(20)   PATH  'imposto/ICMS/ICMS30/pMVAST' 
+                        , N20_ICMS30_pRedBCST   VARCHAR2(20)   PATH  'imposto/ICMS/ICMS30/pRedBCST' 
+                        , N21_ICMS30_vBCST      VARCHAR2(20)   PATH  'imposto/ICMS/ICMS30/vBCST' 
+                        , N22_ICMS30_pICMSST    VARCHAR2(20)   PATH  'imposto/ICMS/ICMS30/pICMSST' 
+                        , N23_ICMS30_vICMSST    VARCHAR2(20)   PATH  'imposto/ICMS/ICMS30/vICMSST'
+                        --  Grupo de Tributação do ICMS = 40, 41 ou 50
+                         , N11_ICMS40_orig       VARCHAR2(1)   PATH  'imposto/ICMS/ICMS40/orig'   
+                         , N12_ICMS40_CST        VARCHAR2(2)   PATH  'imposto/ICMS/ICMS40/CST'
+                         , N17_ICMS40_vICMS      VARCHAR2(20)  PATH  'imposto/ICMS/ICMS40/vICMS'
+                         , N17_ICMS40_motDesICMS VARCHAR2(1)   PATH  'imposto/ICMS/ICMS40/motDesICMS'
+                        -- Grupo de Tributação do ICMS = 51
+                         , N11_ICMS51_orig       VARCHAR2(1)   PATH  'imposto/ICMS/ICMS51/orig'   
+                         , N12_ICMS51_CST        VARCHAR2(2)   PATH  'imposto/ICMS/ICMS51/CST'
+                         , N13_ICMS51_modBC      VARCHAR2(1)   PATH  'imposto/ICMS/ICMS51/vICMS'
+                         , N14_ICMS51_pRedBC     VARCHAR2(20)  PATH  'imposto/ICMS/ICMS51/pRedBC'
+                         , N15_ICMS51_vBC        VARCHAR2(20)  PATH  'imposto/ICMS/ICMS51/vBC'
+                         , N16_ICMS51_pICMS      VARCHAR2(20)  PATH  'imposto/ICMS/ICMS51/pICMS'
+                         , N16_ICMS51_vICMS      VARCHAR2(20)  PATH  'imposto/ICMS/ICMS51/vICMS'
+                         -- Grupo de Tributação do ICMS = 60
+                         , N11_ICMS60_orig       VARCHAR2(1)   PATH  'imposto/ICMS/ICMS60/orig'   
+                         , N12_ICMS60_CST        VARCHAR2(2)   PATH  'imposto/ICMS/ICMS60/CST'
+                         , N26_ICMS60_vBCSTRet   VARCHAR2(20)  PATH  'imposto/ICMS/ICMS60/vBCSTRet'
+                         , N27_ICMS60_vBCSTRet   VARCHAR2(20)  PATH  'imposto/ICMS/ICMS60/vICMSSTRet'
+                         --  Grupo de Tributação do ICMS = 70
+                         , N11_ICMS70_ORIG      VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/orig'                         
+                         , N12_ICMS70_CST       VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/CST'
+                         , N13_ICMS70_MODBC     VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/modBC'
+                         , N14_ICMS70_PREDBC    VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/pRedBC'
+                         , N15_ICMS70_vBC       VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/vBC'
+                         , N16_ICMS70_pICMS     VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/pICMS'
+                         , N17_ICMS70_vICMS     VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/vICMS'                         
+                         , N18_ICMS70_modBCST   VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/modBCST'
+                         , N19_ICMS70_pMVAST    VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/pMVAST'
+                         , N20_ICMS70_pRedBCST  VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/pRedBCST'
+                         , N21_ICMS70_vBCST     VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/vBCST'
+                         , N22_ICMS70_PICMSST   VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/pICMSST'
+                         , N23_ICMS70_vICMSST   VARCHAR2(20)  PATH  'imposto/ICMS/ICMS70/vICMSST'
+                         -- Grupo de Tributação do ICMS = 90
+                         , N11_ICMS90_ORIG      VARCHAR2(20)  PATH  'imposto/ICMS/ICMS90/orig'
+                         , N12_ICMS90_CST       VARCHAR2(20)  PATH  'imposto/ICMS/ICMS90/CST'
+                         , N13_ICMS90_MODBC     VARCHAR2(20)  PATH  'imposto/ICMS/ICMS90/modBC'
+                         , N15_ICMS90_vBC       VARCHAR2(20)  PATH  'imposto/ICMS/ICMS90/vBC'
+                         , N14_ICMS90_pRedBC    VARCHAR2(20)   PATH  'imposto/ICMS/ICMS90/pRedBC'
+                         , N16_ICMS90_pICMS     VARCHAR2(20)   PATH  'imposto/ICMS/ICMS90/pICMS'
+                         , N17_ICMS90_vICMS     VARCHAR2(20)   PATH  'imposto/ICMS/ICMS90/vICMS'
+                         , N18_ICMS90_modBCST   VARCHAR2(20)   PATH  'imposto/ICMS/ICMS90/modBCST'
+                         , N19_ICMS90_pMVAST    VARCHAR2(20)   PATH  'imposto/ICMS/ICMS90/pMVAST'
+                         , N20_ICMS90_pRedBCST  VARCHAR2(20)   PATH  'imposto/ICMS/ICMS90/pRedBCST'
+                         , N21_ICMS90_vBCST     VARCHAR2(20)   PATH  'imposto/ICMS/ICMS90/vBCST'
+                         , N22_ICMS90_pICMSST   VARCHAR2(20)   PATH  'imposto/ICMS/ICMS90/pICMSST'
+                         , N23_ICMS90_pICMSST   VARCHAR2(20)   PATH  'imposto/ICMS/ICMS90/vICMSST'
+                         --  O - Imposto sobre Produtos Industrializados  (IPI)
+                         , O02_IPI_CLENQ        VARCHAR2(20)   PATH  'imposto/IPI/clEnq'
+                         , O03_IPI_CNPJPROD     VARCHAR2(20)   PATH  'imposto/IPI/CNPJProd'
+                         , O04_IPI_CSELO        VARCHAR2(20)   PATH  'imposto/IPI/cSelo'
+                         , O05_IPI_QSELO        VARCHAR2(20)   PATH  'imposto/IPI/qSelo'
+                         , O05_IPI_cEnq         VARCHAR2(20)   PATH  'imposto/IPI/cEnq'
+                         --  IPI - Grupo do CST 00, 49, 50 e 99
+                         , O02_IPITrib_CLENQ    VARCHAR2(20)   PATH  'imposto/IPI/IPITrib/CLENQ'
+                         , O09_IPITrib_CST      VARCHAR2(20)   PATH  'imposto/IPI/IPITrib/CST'
+                         , O10_IPITRIB_VBC      VARCHAR2(20)   PATH  'imposto/IPI/IPITrib/vBC'
+                         , O11_IPITRIB_qUnid    VARCHAR2(20)   PATH  'imposto/IPI/IPITrib/qUnid'
+                         , O12_IPITRIB_vUnid    VARCHAR2(20)   PATH  'imposto/IPI/IPITrib/vUnid'           
+                         , O13_IPITRIB_pIPI     VARCHAR2(20)   PATH  'imposto/IPI/IPITrib/pIPI'     
+                         , O14_IPITRIB_vIPI     VARCHAR2(20)   PATH  'imposto/IPI/IPITrib/vIPI'   
+                         --  IPI - O08 IPINT   Grupo do CST 01, 02, 03, 04,51, 52, 53, 54 e 55
+                         , O09_IPINT_CST         VARCHAR2(20)  PATH    'imposto/IPI/IPINT/CST'      
+                         -- Grupo de PIS tributado pela alíquota (PISAliq) 
+                         , Q06_PISAliq_CST       VARCHAR2(20)  PATH  'imposto/PIS/PISAliq/CST'
+                         , Q07_PISAliq_vBC       VARCHAR2(20)  PATH  'imposto/PIS/PISAliq/vBC'  
+                         , Q08_PISAliq_pPIS      VARCHAR2(20)  PATH   'imposto/PIS/PISAliq/pPIS'
+                         , Q08_PISAliq_vPIS      VARCHAR2(20)  PATH   'imposto/PIS/PISAliq/vPIS'
+                         -- Grupo de PIS tributado pela alíquota (PISQtde)     
+                         , Q06_PISQtde_CST       VARCHAR2(20)  PATH  'imposto/PIS/PISQtde/CST'
+                         , Q10_PISQtde_qBCProd   VARCHAR2(20)  PATH  'imposto/PIS/PISQtde/qBCProd'
+                         , Q11_PISQtde_vAliqProd VARCHAR2(20)  PATH  'imposto/PIS/PISQtde/vAliqProd'
+                         , Q09_PISQtde_vPIS      VARCHAR2(20)  PATH  'imposto/PIS/PISQtde/vPIS'
+                         --  Grupo de PIS não tributado  (PISNT)                    
+                         , Q02_PISNT_CST         VARCHAR2(20)   PATH  'imposto/PIS/PISNT/CST'
+                         -- 
+                         , Q06_PISOutr_CST         VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/CST'
+                         , Q07_PISOutr_vBC         VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/vBC'
+                         , Q08_PISOutr_pPIS        VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/pPIS'
+                         , Q10_PISOutr_qBCProd     VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/qBCProd'    
+                         , Q11_PISOutr_vAliqProd   VARCHAR2(20)   PATH  'imposto/PIS/PISOutr/vAliqProd'   
+                         , Q09_PISOutr_vPIS        VARCHAR2(20)        PATH  'imposto/PIS/PISOutr/vPIS'  
+                         --   Grupo de PIS Substituição Tributária  (PISST)
+                         , R02_PISST_vBC           VARCHAR2(20)   PATH  'imposto/PIS/PISST/vBC'
+                         , R03_PISST_pPIS          VARCHAR2(20)   PATH  'imposto/PIS/PISST/pPIS'
+                         , R04_PISST_qBCProd       VARCHAR2(20)   PATH  'imposto/PIS/PISST/qBCProd'   
+                         , R05_PISST_vAliqProd     VARCHAR2(20)   PATH  'imposto/PIS/PISST/vAliqProd'
+                         , R06_PISST_vPIS          VARCHAR2(20)   PATH  'imposto/PIS/PISST/vPIS'
+                         --   Grupo do COFINS   (COFINSAliq)
+                         , S06_COFINSAliq_CST      VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/CST' 
+                         , S07_COFINSAliq_vBC      VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/vBC' 
+                         , S08_COFINSAliq_pCOFINS  VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/pCOFINS' 
+                         , S011_COFINSAliq_vCOFINS VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/vCOFINS' 
+                          --   Grupo do COFINS   (COFINSQtde) 
+                         , S06_COFINSQtde_CST      VARCHAR2(20)   PATH  'imposto/COFINS/COFINSQtde/CST' 
+                         , S09_COFINSQtde_vBC      VARCHAR2(20)   PATH  'imposto/COFINSCOFINS/COFINSAliq/qBCProd' 
+                         , S10_COFINSQtde_pCOFINS  VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/vAliqProd' 
+                         , S011_COFINSQtde_vCOFINS VARCHAR2(20)   PATH  'imposto/COFINS/COFINSAliq/vCOFINS'       
+                         --
+                        , S06_COFINSNT_CST         VARCHAR2(20)   PATH  'imposto/COFINS/COFINSNT/CST'   
+                        -- Grupo de COFINS Outras Operações ( COFINSOutr )
+                        , S06_COFINSOutr_CST           VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/CST'  
+                        , S07_COFINSOutr_vBC           VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/vBC'  
+                        , S08_COFINSOutr_pCOFINS       VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/pCOFINS'  
+                        , S09_COFINSOutr_qBCProd       VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/qBCProd'  
+                        , S10_COFINSOutr_vAliqProd     VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/vAliqProd'  
+                        , S11_COFINSOutr_vCOFINS       VARCHAR2(20)   PATH  'imposto/COFINS/COFINSOutr/vCOFINS'                 
+                        ) x 
+ WHERE 1 = 1  
+  --AND  T.CANC IS NULL   
+  AND t.status is null    --  não há duplicado
+  AND  NOT EXISTS  
+     ( SELECT  1
+           FROM TB_XML_ITEM_NFE
+         WHERE t.ID_PROCID      = TB_XML_ITEM_NFE.ID_PROCID
+         AND   t.ID_XML_MATRIX  = TB_XML_ITEM_NFE.ID_XML_MATRIX
+        );
+
+EXCEPTION 
+     WHEN OTHERS THEN 
+      RAISE ;
+
+  END PRC_INS_XML_ITEM_NFE;
+/
+
+
+DROP PROCEDURE "APEX"."PRC_UPD_XML_CANC_CFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_UPD_XML_CANC_CFE
+IS
+BEGIN
+INSERT INTO TB_XML_CANC_CFE
+SELECT
+ NULL ID_XML_CANC_CFE 
+ , t.id_xml_matrix                 
+ , t.id_procid
+ , chCanc             
+ , versao             
+ , dEmi               
+ , hEmi               
+ , IDE_cUF            
+ , IDE_cNF            
+ , IDE_mod            
+ , IDE_nserieSAT      
+ , IDE_nCFe           
+ , IDE_dEmi           
+ , IDE_hEmi           
+ , IDE_cDV            
+ , IDE_CNPJ           
+ , IDE_NUMEROCAIXA 
+ , EMIT_xLgr
+ , EMIT_CNPJ    
+ , EMIT_xNome   
+ , EMIT_nro     
+ , EMIT_xCpl    
+ , EMIT_xBairro 
+ , EMIT_xMun    
+ , EMIT_CEP
+ , EMIT_IE 
+ , TOTAL_VCFE  
+ , INFCFE  
+ , TO_CHAR(t.DATA_XML_UPLOAD, 'DD/MM/YYYY')DATA_XML_UPLOAD
+ ,t.nm_usuario 
+ , NULL
+ FROM TB_XML_MATRIX t
+   , XMLTABLE ( '/CFeCanc/infCFe'
+       PASSING t.xmls
+        COLUMNS 
+         INFCFE             VARCHAR2 ( 100 )       PATH '@Id'
+       , chCanc             VARCHAR2 ( 100 )       PATH '@chCanc'
+       , versao             VARCHAR2 ( 100 )       PATH '@versao'
+       , dEmi               VARCHAR2 ( 100 )       PATH 'dEmi'
+       , hEmi               VARCHAR2 ( 100 )       PATH 'hEmi'
+       , IDE_cUF            VARCHAR2 ( 100 )       PATH 'ide/cUF'
+       , IDE_cNF            VARCHAR2 ( 100 )       PATH 'ide/cNF'
+       , IDE_mod            VARCHAR2 ( 100 )       PATH 'ide/mod'
+       , IDE_nserieSAT      VARCHAR2 ( 100 )       PATH 'ide/nserieSAT'
+       , IDE_nCFe           VARCHAR2 ( 100 )       PATH 'ide/nCFe'
+       , IDE_dEmi           VARCHAR2 ( 100 )       PATH 'ide/dEmi'
+       , IDE_hEmi           VARCHAR2 ( 100 )       PATH 'ide/hEmi'
+       , IDE_cDV            VARCHAR2 ( 100 )       PATH 'ide/cDV'
+       , IDE_CNPJ           VARCHAR2 ( 100 )       PATH 'ide/CNPJ' 
+       , IDE_NUMEROCAIXA    VARCHAR2 ( 100 )       PATH 'ide/numeroCaixa'
+       , EMIT_CNPJ          VARCHAR2 ( 100 )       PATH 'emit/CNPJ'
+       , EMIT_xNome         VARCHAR2 ( 100 )       PATH 'emit/xNome'
+       , EMIT_xLgr          VARCHAR2 ( 100 )       PATH 'emit/enderEmit/xLgr'
+       , EMIT_nro           VARCHAR2 ( 100 )       PATH 'emit/enderEmit/nro'
+       , EMIT_xCpl          VARCHAR2 ( 100 )       PATH 'emit/enderEmit/xCpl'
+       , EMIT_xBairro       VARCHAR2 ( 100 )       PATH 'emit/enderEmit/xBairro'
+       , EMIT_xMun          VARCHAR2 ( 100 )       PATH 'emit/enderEmit/xMun'
+       , EMIT_CEP           VARCHAR2 ( 100 )       PATH 'emit/enderEmit/CEP'  
+       , EMIT_IE            VARCHAR2 ( 100 )       PATH 'emit/IE'  
+       , TOTAL_VCFE            VARCHAR2 ( 100 )    PATH 'total/vCFe'  
+              ) where  1=1
+              and  NOT exists
+                 ( SELECT 1
+                    FROM TB_XML_CANC_CFE A
+                  WHERE 1=1 
+                  AND  A.ID_XML_MATRIX = T.ID_XML_MATRIX
+                   ) ;
+          COMMIT WORK ;
+          
+          
+  
+                --   Carimba o campo (NUM_AUTENTIC_XML) com a chave 
+                -- da nota cancelada do xml.
+                BEGIN
+                    FOR C1
+                        IN (   SELECT t.ROWID id, INFCFE, chCanc
+                                FROM TB_XML_MATRIX t,
+                                    XMLTABLE (
+                                        '/CFeCanc/infCFe'
+                                        PASSING t.xmls
+                                        COLUMNS INFCFE    VARCHAR2 (100) PATH '@Id',
+                                                chCanc    VARCHAR2 (100) PATH '@chCanc')
+                                WHERE 1 = 1)
+                    LOOP
+                        UPDATE TB_XML_MATRIX
+                        SET   NUM_AUTENTIC_XML = C1.chCanc
+                        WHERE ROWID        = C1.ID;
+                    END LOOP;
+
+                    COMMIT WORK;
+                END;    
+
+ 
+                    -- CAPA 
+                   BEGIN
+                    FOR C1 IN ( SELECT A.ROWID     ID
+                                    ,  A.ID_XML_MATRIX  ID_XML_MATRIX_CFE 
+                                    ,  B.ID_XML_MATRIX  ID_XML_MATRIX_CANC
+                                 FROM TB_XML_CAPA_CFE A, TB_XML_CANC_CFE B
+                                WHERE a.INFCFE = b.chCanc )
+                    LOOP
+                        --
+                        --  ATULIZA  QUANDO É CUPOM FISCAL CANCELADO
+                        --
+                        UPDATE TB_XML_CAPA_CFE
+                           SET CANC = 'C'
+                         WHERE ROWID = C1.ID;
+                         
+                         
+                         --   
+                         --  ATUALIZA A TABELA MATRIX QUANDO É CUPOM FISCAL CANCELADO
+                         --
+                         UPDATE TB_XML_MATRIX
+                          SET  CANC = 'C' 
+                          ,     ID_XML_MATRIX_PARENTS = C1.ID_XML_MATRIX_CANC
+                          WHERE ID_XML_MATRIX         = C1.ID_XML_MATRIX_CFE;
+                     
+                         COMMIT;
+                        
+                    END LOOP;
+                END;
+                
+                
+                  
+                    BEGIN
+                      FOR  X1 IN  ( 
+                           SELECT  a.rowid id
+                             FROM TB_XML_MATRIX    A
+                            ,    TB_XML_CAPA_CFE   B
+                           WHERE A.ID_XML_MATRIX = B.ID_XML_MATRIX  )
+                        LOOP
+                     ---
+                     ---  ATUALIZA TODOS OS CUPOM FISCAL SEM SER CANCELADO
+                     ---
+                           UPDATE TB_XML_MATRIX
+                              SET CFE = 'Y' 
+                           WHERE ROWID = X1.ID; 
+                        END LOOP;
+                        COMMIT;
+                    END ;
+
+                
+                
+         EXCEPTION 
+         WHEN OTHERS THEN 
+           RAISE ;
+         END PRC_UPD_XML_CANC_CFE;
+/
+
+
+DROP PROCEDURE "APEX"."PRC_UPD_XML_CANC_NFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_UPD_XML_CANC_NFE
+IS
+BEGIN
+ FOR X1 IN (
+ SELECT
+      TB_XML_CANC.DESCEVENTO
+    , TB_XML_CANC.EVENTO_CHNFE
+    , TB_XML_CAPA_DFE.ID_XML_MATRIX   ID_XML_MATRIX_PARENTS  --  = (TB_XML_MATRIX.ID_XML_MATRIX) 
+    --, TB_XML_CANC.ID_XML_MATRIX
+    --, TB_XML_CAPA_DFE.NM_XML 
+    --, TB_XML_CANC.NM_XML
+    --
+    , TB_XML_CAPA_DFE.ROWID   ROWID_CAPA_DFE
+    , TB_XML_CANC.ROWID       ROWID_CANC
+    , TB_XML_MATRIX.ROWID     ROWID_MATRIX
+    --
+    , TB_XML_CANC.ID_XML_MATRIX   ID_XML_MATRIX_CANC
+    FROM TB_XML_CAPA_DFE
+    ,    TB_XML_CANC
+    ,    TB_XML_MATRIX
+  WHERE TB_XML_CAPA_DFE.PR07_CHNFE  = TB_XML_CANC.EVENTO_CHNFE
+  AND   TB_XML_MATRIX.ID_XML_MATRIX = TB_XML_CAPA_DFE.ID_XML_MATRIX
+  AND   UPPER (TB_XML_CANC.DESCEVENTO) LIKE '%CANC%'
+  --AND  ( TB_XML_CAPA_DFE.ID_XML_MATRIX = 25700833439185609 AND TB_XML_MATRIX.ID_XML_MATRIX = 25700833439185609)
+  --AND   TB_XML_CANC.ID_XML_MATRIX      = 25601776471024890 
+  )
+  LOOP
+   UPDATE  TB_XML_CAPA_DFE
+     SET   CANC = 'C'
+    WHERE ROWID  = X1.ROWID_CAPA_DFE;
+
+   UPDATE  TB_XML_MATRIX
+     SET   CANC = 'C'
+    WHERE ROWID  = X1.ROWID_MATRIX; 
+
+    UPDATE  TB_XML_CANC
+     SET   ID_XML_MATRIX_PARENTS = X1.ID_XML_MATRIX_PARENTS
+    WHERE ROWID  = X1.ROWID_CANC;
+
+  END LOOP;
+  COMMIT;
+
+   --  UPDATTE  NFE  ( 1 )
+BEGIN
+FOR  C2 IN  (
+SELECT t.ROWID id
+  FROM tb_xml_matrix t
+     , TABLE ( XMLSEQUENCE ( EXTRACT ( t.xmls
+                                     , 'nfeProc'
+                                     , 'xmlns="http://www.portalfiscal.inf.br/nfe"' ) ) ) x07)
+LOOP
+UPDATE  tb_xml_matrix
+  SET   NFE = 'Y' 
+  , ID_XML_TIPO = 1 
+ WHERE ROWID  = C2.ID ;
+END LOOP;
+END ; 
+COMMIT;
+
+
+--  
+-- --  UPDATTE  NFE  ( 2 )
+--
+BEGIN
+    FOR c3 IN ( SELECT t.ROWID id , infcfe
+                  FROM tb_xml_matrix t
+                     , XMLTABLE ( '/CFe/infCFe'
+                                  PASSING t.xmls
+                                  COLUMNS infcfe VARCHAR2 ( 100 ) PATH '@Id'
+                                        , versao VARCHAR2 ( 100 ) PATH '@versao'
+                                        , versaodadosent VARCHAR2 ( 100 ) PATH '@versaoDadosEnt'
+                                        , versaosb VARCHAR2 ( 100 ) PATH '@versaoSB' ) ) LOOP
+        UPDATE tb_xml_matrix
+           SET cfe = 'Y' 
+           ,   num_autentic_xml = TO_CHAR(c3. infcfe)
+           , ID_XML_TIPO = 2
+         WHERE ROWID = c3.id;
+    END LOOP;
+END;
+COMMIT;
+
+
+--   UPDATE NA CHAVE NFE 
+      BEGIN      
+          FOR  C1  IN ( 
+                SELECT  
+                T.ROWID                                                                  AS ID_ROWID ,
+                EXTRACTVALUE(VALUE(x07),'/nfeProc/NFe/infNFe/@Id')                        AS Id ,
+                TO_CHAR(EXTRACTVALUE(VALUE(x07),'/nfeProc/protNFe /infProt/chNFe'))        AS infProt_chNFe
+                 FROM TB_XML_MATRIX T,
+                TABle(XMLSequence(extract(t.xmls ,'nfeProc','xmlns="http://www.portalfiscal.inf.br/nfe"'))) x07  )
+          LOOP
+           UPDATE  TB_XML_MATRIX 
+             SET  NUM_AUTENTIC_XML = TO_CHAR(C1.ID) 
+            ,    RETEVENTO_CHNFE  =  TO_CHAR(C1.infProt_chNFe)  
+           WHERE ROWID            =  C1.ID_ROWID 
+            --  AND  STATUS IS NULL
+         
+            ;
+          END LOOP;
+          END ;
+          
+          
+      --  UPDATE NA CAMPO DE STATUS (DEDUPLICAÇÃO)    
+          BEGIN
+          FOR c4 IN ( SELECT *
+                  FROM (SELECT STATUS , ROWID AS rowid_clone
+                             , ROW_NUMBER ( )
+                                   OVER ( PARTITION BY num_autentic_xml
+                                          ORDER BY num_autentic_xml )
+                                   sibling_id
+                          FROM tb_xml_matrix WHERE RETEVENTO_CHNFE IS NOT NULL )
+                 WHERE sibling_id > 1  ) LOOP
+        UPDATE tb_xml_matrix
+           SET status = c4.rowid_clone || '  :  ' || '   duplicado : --> ' || c4.sibling_id
+         WHERE ROWID = c4.rowid_clone 
+           AND  STATUS IS  NULL 
+         ;
+     END LOOP;
+    END;
+
+
+
+
+  END PRC_UPD_XML_CANC_NFE ;
+
+
+
+--ALTER TABLE  TB_XML_CANC  ADD (ID_XML_MATRIX_PARENTS NUMBER );
+/
+
+
+DROP PROCEDURE "APEX"."PRC_XML_INF_CFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_XML_INF_CFE
+         AS
+         BEGIN
+          INSERT INTO TB_XML_INF_CFE
+           SELECT 
+               NULL   ID_XML_INF_CFE
+             , t."ID_XML_MATRIX"  
+             , T.NM_XML 
+             , INFCFE
+             , B03_IDE_CNF
+             , Z01_INFADIC_INFCPL
+            FROM tb_xml_matrix t
+                 , XMLTABLE ( '/CFe/infCFe'
+                              PASSING t.xmls
+                              COLUMNS -- A - DADOS DO CUPOM FISCAL ELETRÔNICO
+                                      infcfe VARCHAR2 ( 100 )         PATH '@Id'
+                                    , versao VARCHAR2 ( 100 )         PATH '@versao'
+                                    , versaodadosent VARCHAR2 ( 100 ) PATH '@versaoDadosEnt'
+                                    , versaosb VARCHAR2 ( 100 )       PATH '@versaoSB' 
+                                    --- B - IDENTIFICAÇÃO DO CUPOM FISCAL ELETRÔNICO
+                                    , B02_IDE_CUF                       VARCHAR2 ( 2 )   PATH 'ide/cUF'
+                                    , B03_IDE_CNF                       VARCHAR2 ( 6 )   PATH 'ide/cNF'
+                                    , Z01_INFADIC_INFCPL                VARCHAR2 ( 3200 )PATH 'infAdic/infCpl'
+                                    )
+                              WHERE  1=1 
+                              AND NOT EXISTS 
+                                ( SELECT 1
+                                    FROM TB_XML_INF_CFE INF
+                                    WHERE INF.ID_XML_MATRIX = t."ID_XML_MATRIX"
+                                   );
+                             EXCEPTION 
+                              WHEN OTHERS THEN 
+                              RAISE;
+                              END PRC_XML_INF_CFE;
+/
+
+
+DROP PROCEDURE "APEX"."PRC_XML_INF_NFE";
+
+CREATE OR REPLACE PROCEDURE "APEX".PRC_XML_INF_NFE
+               IS 
+               BEGIN               
+               INSERT INTO TB_XML_INF_NFE
+               SELECT
+                NULL                                                                                            AS ID_XML_INF_NFE,
+                T.ID_XML_MATRIX                                                                                 AS ID_XML_MATRIX,
+                T.ID_PROCID                                                                                     AS ID_PROCID,
+                T.NM_XML                                                                                        AS NM_XML,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/@Id')                                              AS INFNFE ,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/emit/CNPJ')                                        AS C02_CNPJ,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/ide/cNF')                                          AS B03_CNF,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/infAdic/infAdFisco')                               AS infAdFisco,
+                EXTRACTVALUE(VALUE(X07),'/nfeProc/NFe/infNFe/infAdic/infCpl')                                   AS infCpl                                
+               FROM TB_XML_MATRIX T,
+            TABLE(XMLSEQUENCE(EXTRACT(T.XMLS ,'nfeProc','xmlns="http://www.portalfiscal.inf.br/nfe"'))) X07
+            WHERE 1=1
+            AND  NOT EXISTS 
+               (  SELECT  1
+                     FROM TB_XML_INF_NFE A
+                   WHERE A."ID_XML_MATRIX" = T."ID_XML_MATRIX"
+                  ) ;
+             EXCEPTION 
+             WHEN OTHERS THEN 
+              RAISE ;
+              END PRC_XML_INF_NFE;
+/

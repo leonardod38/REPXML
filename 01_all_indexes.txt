@@ -1,0 +1,179 @@
+--  There is no statement for index "APEX"."SYS_C0012304".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013472".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013548".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013549".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013560".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013561".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013622".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013627".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013633".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013634".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013712".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013713".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013788".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013790".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013860".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013861".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013864".
+--  The object is created when the parent object is created.
+
+--  There is no statement for index "APEX"."SYS_C0013865".
+--  The object is created when the parent object is created.
+
+DROP INDEX "APEX"."TB_XML_B_IDENT_NFE_PK";
+
+CREATE UNIQUE INDEX "APEX"."TB_XML_B_IDENT_NFE_PK" ON "APEX"."TB_XML_B_IDENT_NFE"
+("ID_XML_B_IDENT_NFE", "ID_XML_MATRIX", "ID_PROCID")
+LOGGING
+TABLESPACE "APEX_3800402470224130"
+PCTFREE    10
+INITRANS   2
+MAXTRANS   255
+STORAGE    (
+            INITIAL          64K
+            NEXT             1M
+            MINEXTENTS       1
+            MAXEXTENTS       UNLIMITED
+            PCTINCREASE      0
+            BUFFER_POOL      DEFAULT
+           );
+
+DROP INDEX "APEX"."TB_XML_B_IDENT_NFE_U01";
+
+CREATE UNIQUE INDEX "APEX"."TB_XML_B_IDENT_NFE_U01" ON "APEX"."TB_XML_B_IDENT_NFE"
+("NM_XML")
+LOGGING
+TABLESPACE "APEX_3800402470224130"
+PCTFREE    10
+INITRANS   2
+MAXTRANS   255
+STORAGE    (
+            INITIAL          64K
+            NEXT             1M
+            MINEXTENTS       1
+            MAXEXTENTS       UNLIMITED
+            PCTINCREASE      0
+            BUFFER_POOL      DEFAULT
+           );
+
+DROP INDEX "APEX"."TB_XML_IMPOSTO_NFE_PK";
+
+CREATE UNIQUE INDEX "APEX"."TB_XML_IMPOSTO_NFE_PK" ON "APEX"."TB_XML_IMPOSTO_NFE"
+("ID__XML_IMPOSTO_NFE")
+LOGGING
+TABLESPACE "APEX_3800402470224130"
+PCTFREE    10
+INITRANS   2
+MAXTRANS   255
+STORAGE    (
+            INITIAL          64K
+            NEXT             1M
+            MINEXTENTS       1
+            MAXEXTENTS       UNLIMITED
+            PCTINCREASE      0
+            BUFFER_POOL      DEFAULT
+           );
+
+DROP INDEX "APEX"."TB_XML_IMPOSTO_NFE_U01";
+
+CREATE UNIQUE INDEX "APEX"."TB_XML_IMPOSTO_NFE_U01" ON "APEX"."TB_XML_IMPOSTO_NFE"
+("ID_XML_MATRIX", "ID_PROCID", "NM_XML", "H02_NITEM")
+LOGGING
+TABLESPACE "APEX_3800402470224130"
+PCTFREE    10
+INITRANS   2
+MAXTRANS   255
+STORAGE    (
+            INITIAL          64K
+            NEXT             1M
+            MINEXTENTS       1
+            MAXEXTENTS       UNLIMITED
+            PCTINCREASE      0
+            BUFFER_POOL      DEFAULT
+           );
+
+DROP INDEX "APEX"."TB_XML_ITEM_NFE_PK";
+
+CREATE UNIQUE INDEX "APEX"."TB_XML_ITEM_NFE_PK" ON "APEX"."TB_XML_ITEM_NFE"
+("ID_XML_ITEM_NFE")
+LOGGING
+TABLESPACE "APEX_3800402470224130"
+PCTFREE    10
+INITRANS   2
+MAXTRANS   255
+STORAGE    (
+            INITIAL          64K
+            NEXT             1M
+            MINEXTENTS       1
+            MAXEXTENTS       UNLIMITED
+            PCTINCREASE      0
+            BUFFER_POOL      DEFAULT
+           );
+
+DROP INDEX "APEX"."TB_XML_ITEM_NFE_U01";
+
+CREATE UNIQUE INDEX "APEX"."TB_XML_ITEM_NFE_U01" ON "APEX"."TB_XML_ITEM_NFE"
+("ID_XML_MATRIX", "ID_PROCID", "H02_NITEM")
+LOGGING
+TABLESPACE "APEX_3800402470224130"
+PCTFREE    10
+INITRANS   2
+MAXTRANS   255
+STORAGE    (
+            INITIAL          64K
+            NEXT             1M
+            MINEXTENTS       1
+            MAXEXTENTS       UNLIMITED
+            PCTINCREASE      0
+            BUFFER_POOL      DEFAULT
+           );
+
+DROP INDEX "APEX"."TB_XML_MATRIX_U01";
+
+CREATE UNIQUE INDEX "APEX"."TB_XML_MATRIX_U01" ON "APEX"."TB_XML_MATRIX"
+("NM_XML")
+LOGGING
+TABLESPACE "APEX_3800402470224130"
+PCTFREE    10
+INITRANS   2
+MAXTRANS   255
+STORAGE    (
+            INITIAL          64K
+            NEXT             1M
+            MINEXTENTS       1
+            MAXEXTENTS       UNLIMITED
+            PCTINCREASE      0
+            BUFFER_POOL      DEFAULT
+           );

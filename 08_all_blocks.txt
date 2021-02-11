@@ -1,0 +1,80 @@
+DECLARE
+    l_files apex_t_varchar2;
+    ln  number; 
+    err_code varchar(255);
+    err_msg  varchar(255);
+
+BEGIN
+ select  SEQ_PROCID.nextval
+   into  ln 
+    from dual;
+
+    l_files :=
+        apex_string.split ( :P13_FILE
+                          , ':' );
+
+    FOR i IN 1 .. l_files.COUNT LOOP
+        FOR c1 IN ( SELECT *
+                      FROM apex_application_temp_files
+                     WHERE name = l_files ( i ) ) LOOP
+              --        
+            BEGIN
+                INSERT INTO tb_xml_matrix ( id_xml_matrix
+                                          , id_xml_tipo
+                                          , id_procid
+                                          , nm_xml
+                                          , data_xml_upload
+                                          , xmls
+                                          , nm_usuario )
+                     VALUES ( c1.id
+                            , NULL
+                            , ln
+                            , c1.filename
+                            , c1.created_on
+                            , xmltype ( c1.blob_content , NLS_CHARSET_ID ( 'UTF8' ) )
+                            , :APP_USER );
+            EXCEPTION 
+             WHEN OTHERS THEN 
+                 err_code := SQLCODE;
+                 err_msg := SUBSTR(SQLERRM, 1, 200);
+               INSERT INTO tb_xml_matrix_log ( id_xml_matrix
+                                          , id_xml_tipo
+                                          , id_procid
+                                          , nm_xml
+                                          , data_xml_upload
+                                          , nm_usuario, log_code , log_err_msg )
+                     VALUES ( c1.id
+                            , NULL
+                            , ln
+                            , c1.filename
+                            , c1.created_on
+                            , :APP_USER, err_code , err_msg)
+                            
+                            
+                            ;
+
+
+
+
+            END;
+        END LOOP;
+    END LOOP;
+END;
+
+
+
+
+-- NOTA FISCAL ELETRONICA   
+ PRC_INS_XML_CAPA_NFE; 
+ PRC_INS_XML_ITEM_NFE;
+ PRC_INS_XML_IMPOSTO_NFE;
+ PRC_INS_XML_CANC_NFE;
+ PRC_UPD_XML_CANC_NFE;
+ PRC_XML_INF_NFE;
+
+--  CUPOM FISCAL ELETRONICA   
+PRC_INS_XML_CAPA_CFE;
+PRC_INS_XML_ITEM_CFE;
+PRC_INS_XML_IMPOSTO_CFE;
+PRC_UPD_XML_CANC_CFE;
+PRC_XML_INF_CFE;
